@@ -1,0 +1,648 @@
+---
+title: <center>ST 53 SAGD Data</center>
+author: <center>Andrew Leach</center>
+date: <center>`r format(Sys.time(), '%d %B, %Y')`</center>
+output:
+  html_document:
+      code_folding: hide
+      includes:
+      after_body: 
+      theme: lumen
+  always_allow_html: yes
+
+---
+
+We hear a lot about how performance in the oil sands is improving steadily in terms of its emissions intensity, and one of the ways we can assess that is looking at project-level data for in situ projects' use of steam. While there isn't a 1:1 relationship between aggregate use of steam and aggregate GHG emissions, it will be strongly correlated.  This also gets us around the question of looking at emissions which include cogeneration of power and down to the direct use of the key input to production, which is steam.
+
+The Alberta Energy Regulator provides monthly data for in-situ operations in the Alberta oil sands in a report known as the ST-53.  The data are available [here](https://www.aer.ca/providing-information/data-and-reports/statistical-reports/st53), and you can either download the data and analyze it yourself or use the embedded R code below to download all the data. 
+
+If you're going to run the R code, you'll need a few basic set-up elements to get everything to work. I've included the code here for your reference.
+
+```{r basics, cache=FALSE,warning=FALSE,message=FALSE}
+#packages used
+library(tidyverse)
+library(scales) 
+library(lubridate)
+library(reshape2)
+library(knitr)
+library(prettydoc)
+library(zoo)
+library(readxl)
+library(viridis)
+library(patchwork)
+library(kableExtra)
+
+colors_tableau10 <- function()
+{
+  return(c("#1F77B4", "#FF7F0E", "#2CA02C", "#D62728", "#9467BD", "#8C564B",
+           "#E377C2", "#7F7F7F", "#BCBD22", "#17BECF"))
+}
+
+colors_tableau10_light <- function()
+{
+  return(c("#AEC7E8", "#FFBB78", "#98DF8A", "#FF9896", "#C5B0D5", "#C49C94",
+           "#F7B6D2", "#C7C7C7", "#DBDB8D", "#9EDAE5"))
+}
+
+colors_tableau10_medium <- function()
+{
+  return(c("#729ECE", "#FF9E4A", "#67BF5C", "#ED665D", "#AD8BC9", "#A8786E",
+           "#ED97CA", "#A2A2A2", "#CDCC5D", "#6DCCDA"))
+}
+
+set_png<-function(file_sent,width=1400,height=750,res=130){
+  #MAC
+  if(R.version$platform ==  "x86_64-apple-darwin15.6.0")
+    png(file=file_sent, width = width, height = height,res=res)
+  #PC
+  if(R.version$platform ==  "x86_64-w64-mingw32")
+    png(file=file_sent, width = width, height = height,res=res,type='cairo')
+}
+
+
+weekly_small<-function(caption_align=1){
+  theme_minimal()+theme(
+    plot.margin = margin(.25, .75, .25, .75, "cm"),
+    legend.position = "bottom",
+    legend.margin=margin(c(0,0,0,0),unit="cm"),
+    legend.text = element_text(colour="black", size = 9),
+    plot.caption = element_text(size = 9, face = "italic",hjust=caption_align),
+    plot.title = element_text(size = 12,face = "bold"),
+    plot.subtitle = element_text(size = 11, face = "italic"),
+    panel.grid.minor = element_blank(),
+    text = element_text(size = 11,face = "bold"),
+    axis.title.x = element_text(size = 11,face = "bold", colour="black",margin = margin(t = 15, b = 0)),
+    axis.text = element_text(size = 11,face = "bold", colour="black",margin = margin(t = 10, b = 10)),
+  )
+}
+
+```
+
+# Download the Data
+
+Once you've got the preliminaries of the code, downloading the data is fairly easy.  Each of the data files are stored by year, with the exception of the current year which is has a different naming convention.  The first step is to access the data (click on the code button to see how to do things in R if you're interested).  The code also includes some fixes for names of projects which are not consistent in the data.  This is basically a trial and error process to find broken data series.
+
+```{r st53_data, cache=TRUE,warning=FALSE,message=FALSE} 
+#don't need to cache this long-term - it's daily data
+
+fix_names<-function(data_sent){
+  data_sent<-data_sent %>% mutate(`Scheme Name`= case_when(
+    #Christina Lake
+    grepl("MEG", Operator) & grepl("Christina", `Scheme Name`)  ~ "Christina Lake (MEG)",
+    grepl("Meg", Operator) & grepl("Christina", `Scheme Name`)  ~ "Christina Lake (MEG)",
+    grepl("Cenovus", Operator) & grepl("Christina", `Scheme Name`)  ~ "Christina Lake (FCCL)",
+    #Mackay River (Suncor or Brion)
+    grepl("Suncor", Operator) & grepl("Mackay", `Scheme Name`)  ~ "MacKay River (Suncor)",
+    grepl("Suncor", Operator) & grepl("Mckay", `Scheme Name`)  ~ "MacKay River (Suncor)",
+    grepl("Suncor", Operator) & grepl("ay", `Scheme Name`)  ~ "MacKay River (Suncor)",
+    grepl("Brion", Operator) & grepl("ay", `Scheme Name`)  ~ "MacKay River (Petrochina)",
+    grepl("Petrochina", Operator) & grepl("ay", `Scheme Name`)  ~ "MacKay River (Petrochina)",
+    grepl("PetroChina", Operator) & grepl("ay", `Scheme Name`)  ~ "MacKay River (Petrochina)",
+    grepl("Peace River", `Scheme Name`)  ~ "Peace River",
+    #hangingstone 
+    grepl("Japan", Operator) & grepl("Hang", `Scheme Name`)  ~ "Hangingstone (JACOS)",
+    grepl("Athabasca", Operator) & grepl("Hang", `Scheme Name`)  ~ "Hangingstone (ATH)",
+    grepl("Jackfish", `Scheme Name`)  ~ "Jackfish",
+    grepl("Lindbergh", `Scheme Name`)  ~ "Lindbergh",
+    grepl("Kirby South", `Scheme Name`)  ~ "Kirby",
+    TRUE ~ `Scheme Name`
+  )
+  )
+  
+}
+
+st_53_online<-function(download=F){
+  #every year is xls except for 2015 which is an xlsx file
+  #each file contains a worksheet for bitumen, produced water, and steam usage.
+  years<-seq(2009,2019)
+  data_store <- list()
+  for(year in years){
+    #year<-2015
+    #download=T
+    #https://www.aer.ca/documents/sts/ST53/ST53_2009-12.xls
+    address<-paste("https://www.aer.ca/documents/sts/ST53/ST53_",year,"-12.xls",sep="")
+    filename<-paste("st53_",year,".xls",sep="")
+    if(year==2015){
+      filename<-paste("st53_",year,".xlsx",sep="")
+    address<-paste("https://www.aer.ca/documents/sts/ST53/ST53_",year,"-12.xlsx",sep="")
+    }
+    if(year==2019){
+      filename<-paste("st53_",year,".xls",sep="")
+      address<-paste("https://www.aer.ca/documents/sts/ST53/ST53_Current.xls",sep="")
+    }
+    if(download==T)
+      download.file(address,filename,mode = "wb")
+  #read the bitumen production data. Units are Crude Bitumen Production Rates Per Calendar Day (m³)
+    bitumen_data <- read_excel(filename, sheet = "BITUMEN", skip = 3)
+    bitumen_data<-bitumen_data[!is.na(bitumen_data$`Approval Number`),]
+    bitumen_data$Operator<-gsub(" \\(¹\\)","",bitumen_data$Operator)
+    #take out notes denoted by (*)
+    
+    IDs<-names(bitumen_data)[1:5]
+    bitumen_data$`Monthly Average`<-NULL
+    bitumen_data<-melt(bitumen_data,id=IDs,measure.vars = month.abb,variable.name = "Month",value.name = "Bitumen")
+    bitumen_data$Month<-match(as.character(bitumen_data$Month),month.abb)
+    bitumen_data <-bitumen_data %>% filter(!is.na(Bitumen))
+    #need to trim the totals from the files here
+    
+    #steam data - units are Steam Injection Rates Per Calendar Day (m³)											
+    steam_data <- read_excel(filename, sheet = "STEAM", skip = 3)
+    steam_data<-steam_data[!is.na(steam_data$`Approval Number`),]
+    steam_data$Operator<-gsub(" \\(¹\\)","",steam_data$Operator) #take out notes denoted by       (*)
+    IDs<-names(steam_data)[1:5]
+    steam_data$`Monthly Average`<-NULL
+    steam_data<-melt(steam_data,id=IDs,measure.vars = month.abb, variable.name = "Month",value.name = "Steam")
+    steam_data <-steam_data %>% filter(!is.na(Steam))
+    steam_data$Month<-match(as.character(steam_data$Month),month.abb)
+    
+    #water data: Water Production Rates Per Calendar Day (m³)											
+    
+    water_data <- read_excel(filename, sheet = "WATER", skip = 3)
+    water_data<-water_data[!is.na(water_data$`Approval Number`),]
+    water_data$Operator<-gsub(" \\(¹\\)","",water_data$Operator) #take out notes denoted by (*)
+    IDs<-names(water_data)[1:5]
+    water_data$`Monthly Average`<-NULL
+    water_data<-melt(water_data,id=IDs,measure.vars = month.abb, variable.name = "Month",value.name = "water")
+    water_data <-water_data %>% filter(!is.na(water))
+    water_data$Month<-match(as.character(water_data$Month),month.abb)
+    
+#merge them all  
+        bitumen_data<-bitumen_data %>% left_join(steam_data %>% select(Month,`Approval Number`,Steam))%>%
+      left_join(water_data %>% select(Month,`Approval Number`,water))
+    #merge(bitumen_data,steam_data,by=c("Recovery Method","Area","Operator","Approval Number","Month","Date"))
+      #create dates
+    bitumen_data$Date<-ymd(paste(year,"-",bitumen_data$Month,"-",days_in_month(bitumen_data$Month),sep = ""))
+    
+    bitumen_data$year<-year
+    bitumen_data$Bitumen<-as.numeric(bitumen_data$Bitumen)
+    #here, we need to combine within schemes since there are a couple of Schemes with two separate approvals
+    bitumen_data<-bitumen_data %>% group_by(Operator,`Scheme Name`,Area,`Recovery Method`,Month,Date,year) %>%
+      summarize(Bitumen=sum(Bitumen,na.rm = T),Steam=sum(Steam,na.rm = T),water=sum(water,na.rm = T)) %>% ungroup()
+    
+    bitumen_data$SOR<-bitumen_data$Steam/bitumen_data$Bitumen #do SOR later
+    data_store[[year]]<-bitumen_data
+  }  
+  ST53_data<-do.call("rbind", data_store)
+  ST53_data<-fix_names(ST53_data)
+ST53_data  
+}
+
+#run the code
+ST53_data  <-st_53_online(download = T)
+
+```
+
+With the data downloaded and compiled into a single file, and with names fixed, we can now start looking into the performance of these resource projects over time.  First, let's have a look at some of the summary statistics for the major projects.
+
+
+```{r project_summary, cache=FALSE}
+#create a data frame that is only SAGD and CSS
+df1<- ST53_data %>% filter(`Recovery Method`=="Commercial-SAGD" |`Recovery Method`=="Commercial-CSS" ) %>% 
+  #group by month and recovery method
+  group_by(Month,year,Date,`Recovery Method`) %>% 
+  #figure out total bitumen production, steam production, and water production
+  summarise(Bitumen=sum(Bitumen,na.rm = TRUE),Steam=sum(Steam,na.rm = TRUE),water=sum(water,na.rm = TRUE)) %>%
+  #calculate SOR
+  mutate(SOR=Steam/Bitumen) %>% ungroup() %>%
+  #now go back and do monthly averages
+  group_by(Month,year,Date) %>% mutate(monthly_bbl=sum(Bitumen,na.rm = TRUE),monthly_steam=sum(Steam,na.rm = TRUE),
+                                  monthly_sor=monthly_steam/monthly_bbl,
+                                  monthly_water=sum(water,na.rm = TRUE),
+                                  monthly_wsr=monthly_water/monthly_steam)
+
+df_project<- ST53_data %>% filter(`Recovery Method`=="Commercial-SAGD" |`Recovery Method`=="Commercial-CSS" ) %>% 
+  #group by month and recovery method
+  group_by(`Scheme Name`) %>% 
+  #figure out total bitumen production, steam production, and water production
+  summarise(Operator=last(Operator),steam=sum(Steam,na.rm = T),bitumen=sum(Bitumen,na.rm = T),Bitumen=last(Bitumen)*6.2929,`Recovery Method`=last(`Recovery Method`))%>%
+  arrange(-Bitumen)%>% mutate(`Scheme Name`=as_factor(`Scheme Name`),`Scheme Name`=fct_other(`Scheme Name`,keep = head(`Scheme Name`,10)),`Scheme Name`=fct_explicit_na(`Scheme Name`, na_level = "Other")) %>% mutate(Operator=if_else(`Scheme Name`=="Other","Other",Operator)) %>%
+  group_by(`Scheme Name`,Operator)%>%
+summarise(CSOR=sum(steam,na.rm = T)/sum(bitumen,na.rm = T),
+          Bitumen=sum(Bitumen,na.rm = TRUE),
+          `Recovery Method`=last(`Recovery Method`))%>% ungroup()%>%
+  mutate(`Recovery Method`=if_else(`Scheme Name`=="Other","Variable",`Recovery Method`),
+         `Recovery Method`=gsub("Commercial-","",`Recovery Method`))
+
+#  arrange(-Bitumen)
+  
+
+df_year<-df1 %>% group_by(year,`Recovery Method`) %>% summarise(Bitumen=mean(Bitumen)*6.2929,SOR=mean(SOR))%>% ungroup()%>%
+  #mutate(rec2=`Recovery Method`)%>%
+  pivot_wider(names_from = c(`Recovery Method`), values_from = c(Bitumen,SOR))
+
+```
+
+There are a few very large projects, which you can see listed here.
+
+## Bitumen Production from Steam-Assisted Gravity Drainage and Cyclic Steam Stimulation Regimes in Alberta
+`r kable(df_project,digits=c(0,0,2,0,0),col.names=c("Project","Operator","Cumulative Steam-to-Oil Ratio",paste("Bitumen Production (Barrels Per Day)",max(df1$Date),sep=" "),"Recovery Method"))%>%kable_styling()`
+
+
+
+The first thing we might be interested in is how steam use per barrel has evolved over time, and how it differs between extraction types.  So, let's group and summarize the data and you can see what we get.
+
+## Bitumen Production from Steam-Assisted Gravity Drainage and Cyclic Steam Stimulation Regimes in Alberta
+
+`r df_year%>%kable(digits=c(0,0,0,2,2),col.names=c("Year","CSS","SAGD","CSS","SAGD"))%>%kable_styling()%>%add_header_above(c(" " = 1, "Bitumen Production" = 2, "Steam-to-oil Ratio" = 2))%>%add_header_above(c(" " = 1, "Annual, Production-Weighted Average Performance Data" = 4))`
+
+   
+  
+```{r graphs, cache=FALSE}
+                                  
+#df1$Date<-as.Date(paste(df1$year,"-",df1$Month,"-",days_in_month(df1$Month),sep = ""))  
+
+#png<-1
+#if(png==1)#set these to only turn on if you're making PNG graphs
+#  set_png("in_situ_prod.png")
+#convert to 1000s of bbls per day
+prod_graph<-ggplot(df1,aes(Date,Bitumen*6.2929/10^3,group=`Recovery Method`,colour=`Recovery Method`,fill=`Recovery Method`)) +
+  geom_area(position = "stack") +
+  scale_colour_viridis("Recovery Method",discrete=TRUE)+   
+  scale_fill_viridis("Recovery Method",discrete=TRUE)+   
+  scale_x_date(date_breaks = "12 months", date_labels =  "%b\n%Y",expand=c(0,0)) +
+  #scale_y_continuous(limits=c(0,6),breaks=seq(0,6,1))+
+  theme_minimal()+weekly_small()+
+  labs(y="Bitumen production (1000s of barrels per day)",#x="Date",
+       title=paste("Alberta Oil Sands In-Situ Bitumen Production by Recovery Method",sep=""),
+       caption="Source: AER/ERCB ST53 data, graph by Andrew Leach.")
+#if(png==1)#set these to only turn on if you're making PNG graphs
+#  dev.off()
+ 
+#png<-1
+#if(png==1)#set these to only turn on if you're making PNG graphs
+ # set_png("in_situ_water.png")
+water_graph<-ggplot(df1,aes(Date,water/Bitumen,group=`Recovery Method`,colour=`Recovery Method`,fill=`Recovery Method`)) +
+  geom_line(size=2)+
+  scale_colour_viridis("Recovery Method",discrete=TRUE)+   
+  scale_fill_viridis("Recovery Method",discrete=TRUE)+   
+  scale_x_date(date_breaks = "12 months", date_labels =  "%b\n%Y",expand=c(0,0)) +
+  #scale_y_continuous(limits=c(0,6),breaks=seq(0,6,1))+
+  theme_minimal()+weekly_small()+
+  labs(y="Water production ratio (barrels per barrel bitumen)",#x="Date",
+       title=paste("Alberta Oil Sands In-Situ Water Production Ratio by Recovery Method",sep=""),
+       caption="Source: AER/ERCB ST53 data, graph by Andrew Leach.")
+#if(png==1)#set these to only turn on if you're making PNG graphs
+#  dev.off()
+
+
+
+#png<-1
+#if(png==1)#set these to only turn on if you're making PNG graphs
+#  set_png("in_situ_SOR.png")
+sor_graph<-ggplot(df1,aes(Date,SOR,group=`Recovery Method`,colour=`Recovery Method`)) +
+  geom_line(size=2) +
+  geom_line(data=filter(df1,`Recovery Method`=="Commercial-SAGD"),aes(Date,monthly_sor,colour="Production-weighted average"),size=2) +
+  scale_colour_viridis("Recovery Method:",discrete=TRUE)+   
+  scale_fill_viridis("Recovery Method:",discrete=TRUE)+   
+  scale_x_date(date_breaks = "12 months", date_labels =  "%b\n%Y",expand=c(0,0)) +
+  #scale_y_continuous(limits=c(0,6),breaks=seq(0,6,1))+
+  scale_y_continuous(breaks=pretty_breaks())+
+  theme_minimal()+weekly_small()+
+  labs(y="Steam:bitumen ratio",#x="Date",
+       title=paste("Alberta Oil Sands Steam:Oil Ratios by Recovery Method",sep=""),
+       caption="Source: AER/ERCB ST53 data, graph by Andrew Leach.")
+#if(png==1)#set these to only turn on if you're making PNG graphs
+# dev.off()
+
+
+
+#png<-1
+#if(png==1)#set these to only turn on if you're making PNG graphs
+#  set_png("SAGD_SOR.png")
+SAGD_SOR<-ggplot(filter(df1,`Recovery Method`=="Commercial-SAGD"),aes(Date,SOR,group=`Recovery Method`,colour=`Recovery Method`)) +
+  geom_line(size=2) +
+  scale_colour_viridis("Recovery Method:",discrete=TRUE)+   
+  scale_fill_viridis("Recovery Method:",discrete=TRUE)+   
+  scale_x_date(date_breaks = "12 months", date_labels =  "%b\n%Y",expand=c(0,0)) +
+  scale_y_continuous()+
+  theme_minimal()+weekly_small()+
+  labs(y="Steam:bitumen ratio",#x="Date",
+       title=paste("Alberta Oil Sands Steam:Oil Ratios by Recovery Method",sep=""),
+       caption="Source: AER/ERCB ST53 data, graph by Andrew Leach.")
+#if(png==1)#set these to only turn on if you're making PNG graphs
+#  dev.off()
+
+
+```
+
+
+## In situ aggregate performance {.tabset .tabset-fade}
+While the raw data are helpful, it really jumps out when you look at the changes visually.  In particular, what is going on with CSS and SAGD steam-oil ratios?
+
+### Production
+
+Displays the most recent crude import data and historic ranges.
+
+```{r echo = FALSE, warning=FALSE, message=FALSE, results="asis", cache=FALSE, fig.width=10, fig.pos="H"}
+prod_graph
+```
+
+### In Situ SOR
+
+Displays the most recent crude import data and historic ranges.
+
+```{r echo = FALSE, warning=FALSE, message=FALSE, results="asis", cache=FALSE, fig.width=10, fig.pos="H"}
+sor_graph
+```
+
+
+### SAGD SOR
+
+Displays the most recent crude import data and historic ranges.
+
+```{r echo = FALSE, warning=FALSE, message=FALSE, results="asis", cache=FALSE, fig.width=10, fig.pos="H"}
+SAGD_SOR
+```
+
+### Water
+
+Displays the most recent crude import data and historic ranges.
+
+```{r echo = FALSE, warning=FALSE, message=FALSE, results="asis", cache=FALSE, fig.width=10, fig.pos="H"}
+water_graph
+```
+
+
+
+## In situ cumulative performance {.tabset .tabset-fade}
+
+It's certainly the case that the cumulative steam used per barrel produced decreased dramatically through 2015 as new projects matured, better technology was deployed, and projects came up to full capcity, with more steam being devoted to oil production than to net-to-grid power.  But, since 2015, the flattening of cumulative performance is striking.  
+
+
+```{r SOR_cumul, cache=FALSE,fig.width=12, fig.height=8}
+#create a data frame that is only SAGD and CSS
+df2<- ST53_data %>% filter(`Recovery Method`=="Commercial-SAGD" |`Recovery Method`=="Commercial-CSS" ) %>%
+  #group by month and recovery method
+  group_by(Month,year,Date,`Recovery Method`) %>% 
+  #figure out total bitumen production, steam production, and water production
+  summarise(Bitumen=sum(Bitumen,na.rm = TRUE),Steam=sum(Steam,na.rm = TRUE),water=sum(water,na.rm = TRUE)) %>%
+  #calculate SOR
+  mutate(SOR=Steam/Bitumen) %>% ungroup() %>%  
+  group_by(`Recovery Method`) %>% arrange(Date) %>%
+  #now go back and do cumulatives
+  mutate(cumul_bbl=cumsum(Bitumen),cumul_steam=cumsum(Steam),
+                                  cumul_sor=cumul_steam/cumul_bbl)
+
+p1<-ggplot(filter(df2),aes(Date,cumul_sor,group=`Recovery Method`,colour=`Recovery Method`)) +
+  geom_line(size=2) +
+  scale_colour_viridis("Recovery Method:",discrete=TRUE)+   
+  scale_fill_viridis("Recovery Method:",discrete=TRUE)+   
+  scale_x_date(date_breaks = "12 months", date_labels =  "%b\n%Y",expand=c(0,0)) +
+  scale_y_continuous()+
+  theme_minimal()+weekly_small()+
+  labs(y="Cumulative steam:bitumen ratio",#x="Date",
+       title=paste("Alberta Oil Sands Cumulative steam:Oil Ratios by Recovery Method",sep=""),
+       caption="Source: AER/ERCB ST53 data, graph by Andrew Leach.")
+p2<-ggplot(filter(df2),aes(Date,Steam/Bitumen,group=`Recovery Method`,colour=`Recovery Method`)) +
+  geom_line(size=2) +
+  scale_colour_viridis("Recovery Method:",discrete=TRUE)+   
+  scale_fill_viridis("Recovery Method:",discrete=TRUE)+   
+  scale_x_date(date_breaks = "12 months", date_labels =  "%b\n%Y",expand=c(0,0)) +
+  scale_y_continuous()+
+  theme_minimal()+weekly_small()+
+  labs(y="Monthly steam:bitumen ratio",#x="Date",
+       title=paste("Alberta Oil Sands Monthly steam:oil Ratios by Recovery Method",sep=""),
+       caption="Source: AER/ERCB ST53 data, graph by Andrew Leach.")
+(p1+p2)
+
+```
+   
+   
+Finally, we can also use the generated data to look at specific project, and to check out how their performance compares to the average within their class of project (SAGD or CSS).
+
+
+## In situ project performance data {.tabset .tabset-fade}
+
+
+```{r scheme_plot, cache=FALSE,warning=F,message=F}
+
+SAGD_data <- ST53_data %>% filter(grepl("Commercial",`Recovery Method`),Bitumen>0)%>%
+  group_by(Date,`Recovery Method`) %>% 
+  mutate(mean_sor=sum(Steam,na.rm = T)/sum(Bitumen,na.rm = T))%>% ungroup() %>%
+  group_by(`Scheme Name`) %>% mutate(csor=cumsum(Steam)/cumsum(Bitumen)) %>%
+  ungroup()%>%
+  mutate(Date=as.Date(Date))%>% 
+  group_by(Date, year, Month,`Scheme Name`,`Recovery Method`) %>%
+  summarize(Bitumen=sum(Bitumen,na.rm = T),
+            Steam=sum(Steam,na.rm = T),
+            sor=Steam/Bitumen,
+            mean_sor=mean(mean_sor),
+            Operator=last(Operator)
+  ) %>% ungroup() %>%
+  group_by(`Scheme Name`) %>%
+  arrange(Date)%>%
+  mutate(cumul_bbl=cumsum(Bitumen),cumul_steam=cumsum(Steam),
+                                  cumul_sor=cumul_steam/cumul_bbl)%>% ungroup()
+  
+
+
+sagd_plot<-function(scheme_name){
+scheme_data<-SAGD_data %>% filter(`Scheme Name`==scheme_name) %>% filter(Bitumen>0)%>% mutate(
+  year=year(Date),month=1:n()) #first steam in month 30
+plot_a<-ggplot(scheme_data)+
+  #ggplot(SAGD_data)+ #Foster Creek
+  geom_line(aes(Date,Steam*6.2929/10^3))+
+  guides(colour=F)+
+  scale_x_date(date_breaks = "12 months", date_labels =  "%b\n%Y",expand=c(0,0)) +
+  scale_y_continuous(expand = c(0,0),breaks = pretty_breaks())+
+  labs(y="Steam Production (1000 barrels per day)",x="",
+       title=paste(scheme_name,"Steam Production"))+
+  weekly_small()
+plot_b<-ggplot(scheme_data)+
+  #ggplot(SAGD_data)+ #Foster Creek
+  geom_line(aes(Date,Bitumen*6.2929/10^3))+
+  guides(colour=F)+
+  scale_x_date(date_breaks = "12 months", date_labels =  "%b\n%Y",expand=c(0,0)) +
+  scale_y_continuous(expand = c(0,0),breaks = pretty_breaks())+
+  #geom_hline(yintercept = 0) + 
+  labs(y="Bitumen Production (1000 barrels per day)",x="",
+       title=paste(scheme_name,"Bitumen Production")
+  )+
+  weekly_small()
+plot_c<-ggplot(scheme_data)+
+  #ggplot(SAGD_data)+ #Foster Creek
+  geom_line(aes(Date,pmin(10,sor)))+
+  geom_line(aes(Date,mean_sor),linetype=2)+
+  guides(colour=F)+
+  #scale_x_date(name=NULL,date_breaks = "24 months", date_labels =  "%b\n%Y",expand=c(0,0)) +
+  scale_x_date(date_breaks = "12 months", date_labels =  "%b\n%Y",expand=c(0,0)) +
+  scale_y_continuous(expand = c(0,0),breaks = pretty_breaks())+
+  #geom_hline(yintercept = 0) + 
+  labs(y="Steam-to-oil ratio (barrels per barrel)",x="Production Month",
+       title=paste(scheme_name,"Monthly Steam-to-oil Ratio"),
+       subtitle="Monthly data capped at SOR of 10",     
+       caption="Dashed line is monthly average for recovery method (SAGD or CSS)")+
+  weekly_small()
+plot_d<-ggplot(scheme_data)+
+  #ggplot(SAGD_data)+ #Foster Creek
+  geom_line(aes(Date,pmin(10,cumul_sor)))+
+  guides(colour=F)+
+  #scale_x_date(name=NULL,date_breaks = "24 months", date_labels =  "%b\n%Y",expand=c(0,0)) +
+  scale_x_date(date_breaks = "12 months", date_labels =  "%b\n%Y",expand=c(0,0)) +
+  scale_y_continuous(expand = c(0,0),breaks = pretty_breaks())+
+  #geom_hline(yintercept = 0) + 
+  labs(y="Cumulative steam-to-oil ratio (barrels per barrel)",x="Production Month",
+       title=paste(scheme_name,"Cumulative Steam-to-oil Ratio"),
+       subtitle="Monthly data capped at CSOR of 10",
+       caption="Graphs by Andrew Leach, data via AER")+
+  weekly_small()
+
+(plot_a + plot_b) / (plot_c+ plot_d)
+}
+```
+
+
+### Christina Lake (MEG)
+
+```{r fig.width=12, fig.height=8, scheme_plot_1, cache=FALSE}
+
+sagd_plot("Christina Lake (MEG)")
+
+```
+
+
+### Kirby
+
+```{r fig.width=12, fig.height=8, scheme_plot_2, cache=FALSE}
+sagd_plot("Kirby")
+```
+
+### Firebag (Suncor)
+
+```{r fig.width=12, fig.height=8, scheme_plot_3, cache=FALSE}
+sagd_plot("Firebag")
+```
+
+
+
+### Foster Creek (Cenovus)
+
+```{r fig.width=12, fig.height=8, scheme_plot_4, cache=FALSE}
+sagd_plot("Foster Creek")
+
+```
+
+
+### MacKay River (Suncor)
+
+```{r fig.width=12, fig.height=8, scheme_plot_5, cache=FALSE}
+
+sagd_plot("MacKay River (Suncor)")
+
+```
+
+
+### Long Lake (CNOOC)
+
+```{r fig.width=12, fig.height=8, scheme_plot_6, cache=FALSE}
+sagd_plot("Long Lake")
+```
+
+
+### Sunrise (Husky)
+
+```{r fig.width=12, fig.height=8, scheme_plot_7, cache=FALSE}
+sagd_plot("Sunrise")
+```
+
+
+### Tucker Lake (Husky)
+
+```{r fig.width=12, fig.height=8, scheme_plot_8, cache=FALSE}
+sagd_plot("Tucker Lake")
+```
+
+
+
+### Peace River (CNRL)
+
+```{r fig.width=12, fig.height=8, scheme_plot_9, cache=FALSE}
+sagd_plot("Peace River")
+```
+
+
+### Primrose and Wolf Lake (CNRL)
+
+```{r fig.width=12, fig.height=8, scheme_plot_10, cache=FALSE}
+sagd_plot("Primrose and Wolf Lake")
+```
+
+### Cold Lake (Imperial)
+
+```{r fig.width=12, fig.height=8, scheme_plot_11, cache=FALSE}
+sagd_plot("Cold Lake")
+```
+
+
+
+# Emissions Implications
+
+Some of this is also likely related to why we see very surprising information in the emissions inventories with respect to oil sands, or at least information counter to the prevailing narrative.   To show you what I mean, I'm going to use data from one other data set: Canadian emissions inventory data available from Canada's open data portal [here](http://data.ec.gc.ca/data/substances/monitor/canada-s-official-greenhouse-gas-inventory/GHG_Econ_Can_Prov_Terr.csv).
+
+First, let's get the emissions data.
+```{r nir_data,cache=TRUE, warning=FALSE,message=FALSE,include=TRUE}
+
+#use NIR_prelim
+get_new_nir<-function() {
+  download.file("http://data.ec.gc.ca/data/substances/monitor/canada-s-official-greenhouse-gas-inventory/GHG_Econ_Can_Prov_Terr.csv","canada_ghg.csv")
+  
+  #temp_nir<-read.csv("canada_ghg_prelimi.csv",stringsAsFactors = F)
+  nir_2018<-read.csv("canada_ghg.csv",stringsAsFactors = F)
+  
+  main_sectors<-c(
+    "Oil and Gas",        
+    "Electricity",                                         
+    "Transportation",
+    "Heavy Industry",
+    "Buildings",
+    "Agriculture",
+    "Waste",
+    "Coal Production",
+    "Light Manufacturing",
+    "Construction",
+    "Forest Resources")
+  
+  new_nir<-nir_2018 %>% mutate(Prov=as.factor(Province.Territory),
+                               Prov=fct_recode(Prov,"AB"="Alberta",
+                                               "BC"="British Columbia",
+                                               "NL"="Newfoundland and Labrador",
+                                               "MB"="Manitoba",
+                                               "SK"="Saskatchewan",
+                                               "NS"="Nova Scotia",
+                                               "ON"="Ontario",
+                                               "NT"="Northwest Territories",
+                                               "QC"="Quebec",
+                                               "NU"="Nunavut",
+                                               "NB"="New Brunswick",
+                                               "YT"="Yukon",
+                                               "PE"="Prince Edward Island",
+                                               "NT & NU"="Northwest Territories and Nunavut"),
+                               Prov=fct_collapse(Prov,
+                                                 "TERR" = c("NT", "NU","YT","NT & NU"),
+                                                 "ATL" = c("NL", "NB","NS","PE")),
+                               Sector=gsub("Emissions Intensive & Trade Exposed Industries","Heavy Industry",Trends.Description))%>%
+    group_by(Year, Prov,Sector) %>% summarize (CO2E=sum(as.numeric(CO2E),na.rm = T)) %>% ungroup()%>%
+    rename(GHGs=CO2E)%>%          
+    select(Sector,Prov,Year,GHGs)
+  
+  #re-order east to west
+  new_nir$Prov<-factor(new_nir$Prov, levels=c("Canada" ,"BC","AB" ,"SK","MB", "ON",     "QC" ,  "ATL" ,   "TERR"  ))
+  new_nir
+  }
+bitumen_year<-ST53_data %>% group_by(year,Month) %>% summarize(Bitumen=sum(Bitumen ,na.rm = T)*6.2929*days_in_month(unique(Month)),
+                                                               Steam=sum(Steam ,na.rm = T)*6.2929*days_in_month(unique(Month)))%>% group_by(year)%>%  summarize(Bitumen=sum(Bitumen ,na.rm = T),Steam=sum(Steam,na.rm = T))
+in_situ_nir<-get_new_nir() %>% filter(Sector=="In-situ Bitumen",Prov=="AB") %>% left_join(bitumen_year,by=c("Year"="year"))
+in_situ_nir<-na.omit(in_situ_nir)
+in_situ_nir<-in_situ_nir %>% mutate(ghg_bbl=GHGs*10^6/(Bitumen),SOR=Steam/Bitumen,Bitumen=Bitumen/1000/365)
+
+```
+
+Now, if we look at these data, we can definitely see the, at best, flatlined in-situ emissions per barrel data since 2009 and increasing since 2015.  Unfortunately, we don't have 2018 or 2019 emissions data yet, so it's a wait-and-see, I guess. 
+
+`r kable(in_situ_nir%>%select(-c(1,2,6)),digits=c(0,1,0,3,2),col.names=c("Year","GHGs (Mt)","Bitumen Production (Barrels Per Day)","GHG per Barrel","Average Steam-Oil Ratio"))%>%kable_styling()`
+
+
+
+
+
+
