@@ -114,7 +114,7 @@ fix_names<-function(data_sent){
 st_53_online<-function(download=F){
   #every year is xls except for 2015 which is an xlsx file
   #each file contains a worksheet for bitumen, produced water, and steam usage.
-  years<-seq(2009,2019)
+  years<-seq(2010,year(Sys.Date()))
   data_store <- list()
   for(year in years){
     #year<-2015
@@ -126,7 +126,7 @@ st_53_online<-function(download=F){
       filename<-paste("st53_",year,".xlsx",sep="")
     address<-paste("https://www.aer.ca/documents/sts/ST53/ST53_",year,"-12.xlsx",sep="")
     }
-    if(year==2019){
+    if(year==2021){
       filename<-paste("st53_",year,".xls",sep="")
       address<-paste("https://www.aer.ca/documents/sts/ST53/ST53_Current.xls",sep="")
     }
@@ -195,7 +195,7 @@ ST53_data  <-st_53_online(download = T)
 With the data downloaded and compiled into a single file, and with names fixed, we can now start looking into the performance of these resource projects over time.  First, let's have a look at some of the summary statistics for the major projects.
 
 
-```{r project_summary, cache=FALSE}
+```{r project_summary, cache=FALSE,message = FALSE}
 #create a data frame that is only SAGD and CSS
 df1<- ST53_data %>% filter(`Recovery Method`=="Commercial-SAGD" |`Recovery Method`=="Commercial-CSS" ) %>% 
   #group by month and recovery method
@@ -221,7 +221,10 @@ summarise(CSOR=sum(steam,na.rm = T)/sum(bitumen,na.rm = T),
           Bitumen=sum(Bitumen,na.rm = TRUE),
           `Recovery Method`=last(`Recovery Method`))%>% ungroup()%>%
   mutate(`Recovery Method`=if_else(`Scheme Name`=="Other","Variable",`Recovery Method`),
-         `Recovery Method`=gsub("Commercial-","",`Recovery Method`))
+         `Recovery Method`=gsub("Commercial-","",`Recovery Method`))%>%
+  mutate(`Scheme Name`=fct_reorder(`Scheme Name`,CSOR),`Scheme Name`=fct_relevel(`Scheme Name`,"Other",after=Inf))%>% 
+  mutate(Bitumen=format(round(Bitumen,-3), big.mark = ","))%>%
+  arrange(`Scheme Name`)
 
 #  arrange(-Bitumen)
   
@@ -235,7 +238,7 @@ df_year<-df1 %>% group_by(year,`Recovery Method`) %>% summarise(Bitumen=mean(Bit
 There are a few very large projects, which you can see listed here.
 
 ## Bitumen Production from Steam-Assisted Gravity Drainage and Cyclic Steam Stimulation Regimes in Alberta
-`r kable(df_project,digits=c(0,0,2,0,0),col.names=c("Project","Operator","Cumulative Steam-to-Oil Ratio",paste("Bitumen Production (Barrels Per Day)",max(df1$Date),sep=" "),"Recovery Method"))%>%kable_styling()`
+`r kable(df_project,digits=c(0,0,2,0,0),align=c("l","l","c","c","c"),col.names=c("Project","Operator","Cumulative Steam-to-Oil Ratio",paste("Bitumen Production (Barrels Per Day),\nmonth ended",format(max(df1$Date),"%B, %Y"),sep=" "),"Recovery Method"))%>%kable_styling()`
 
 
 
@@ -243,11 +246,11 @@ The first thing we might be interested in is how steam use per barrel has evolve
 
 ## Bitumen Production from Steam-Assisted Gravity Drainage and Cyclic Steam Stimulation Regimes in Alberta
 
-`r df_year%>%kable(digits=c(0,0,0,2,2),col.names=c("Year","CSS","SAGD","CSS","SAGD"))%>%kable_styling()%>%add_header_above(c(" " = 1, "Bitumen Production" = 2, "Steam-to-oil Ratio" = 2))%>%add_header_above(c(" " = 1, "Annual, Production-Weighted Average Performance Data" = 4))`
+`r df_year%>%kable(digits=c(0,0,0,2,2),align=c("l","c","c","c","c"),col.names=c("Year","CSS","SAGD","CSS","SAGD"))%>%kable_styling()%>%add_header_above(c(" " = 1, "Bitumen Production" = 2, "Steam-to-oil Ratio" = 2))%>%add_header_above(c(" " = 1, "Annual, Production-Weighted Average Performance Data" = 4))`
 
    
   
-```{r graphs, cache=FALSE}
+```{r graphs, cache=FALSE,message = FALSE}
                                   
 #df1$Date<-as.Date(paste(df1$year,"-",df1$Month,"-",days_in_month(df1$Month),sep = ""))  
 
@@ -369,7 +372,7 @@ water_graph
 It's certainly the case that the cumulative steam used per barrel produced decreased dramatically through 2015 as new projects matured, better technology was deployed, and projects came up to full capcity, with more steam being devoted to oil production than to net-to-grid power.  But, since 2015, the flattening of cumulative performance is striking.  
 
 
-```{r SOR_cumul, cache=FALSE,fig.width=12, fig.height=8}
+```{r SOR_cumul, cache=FALSE,fig.width=12, fig.height=8,warnings=FALSE,message = FALSE}
 #create a data frame that is only SAGD and CSS
 df2<- ST53_data %>% filter(`Recovery Method`=="Commercial-SAGD" |`Recovery Method`=="Commercial-CSS" ) %>%
   #group by month and recovery method
@@ -575,71 +578,69 @@ sagd_plot("Cold Lake")
 
 
 
-# Emissions Implications
+<!-- # Emissions Implications -->
 
-Some of this is also likely related to why we see very surprising information in the emissions inventories with respect to oil sands, or at least information counter to the prevailing narrative.   To show you what I mean, I'm going to use data from one other data set: Canadian emissions inventory data available from Canada's open data portal [here](http://data.ec.gc.ca/data/substances/monitor/canada-s-official-greenhouse-gas-inventory/GHG_Econ_Can_Prov_Terr.csv).
+<!-- Some of this is also likely related to why we see very surprising information in the emissions inventories with respect to oil sands, or at least information counter to the prevailing narrative.   To show you what I mean, I'm going to use data from one other data set: Canadian emissions inventory data available from Canada's open data portal [here](http://data.ec.gc.ca/data/substances/monitor/canada-s-official-greenhouse-gas-inventory/GHG_Econ_Can_Prov_Terr.csv). -->
 
-First, let's get the emissions data.
-```{r nir_data,cache=TRUE, warning=FALSE,message=FALSE,include=TRUE}
+<!-- First, let's get the emissions data. -->
+<!-- ```{r nir_data,cache=TRUE, warning=FALSE,message=FALSE,include=TRUE} -->
 
-#use NIR_prelim
-get_new_nir<-function() {
-  download.file("http://data.ec.gc.ca/data/substances/monitor/canada-s-official-greenhouse-gas-inventory/GHG_Econ_Can_Prov_Terr.csv","canada_ghg.csv")
-  
-  #temp_nir<-read.csv("canada_ghg_prelimi.csv",stringsAsFactors = F)
-  nir_2018<-read.csv("canada_ghg.csv",stringsAsFactors = F)
-  
-  main_sectors<-c(
-    "Oil and Gas",        
-    "Electricity",                                         
-    "Transportation",
-    "Heavy Industry",
-    "Buildings",
-    "Agriculture",
-    "Waste",
-    "Coal Production",
-    "Light Manufacturing",
-    "Construction",
-    "Forest Resources")
-  
-  new_nir<-nir_2018 %>% mutate(Prov=as.factor(Province.Territory),
-                               Prov=fct_recode(Prov,"AB"="Alberta",
-                                               "BC"="British Columbia",
-                                               "NL"="Newfoundland and Labrador",
-                                               "MB"="Manitoba",
-                                               "SK"="Saskatchewan",
-                                               "NS"="Nova Scotia",
-                                               "ON"="Ontario",
-                                               "NT"="Northwest Territories",
-                                               "QC"="Quebec",
-                                               "NU"="Nunavut",
-                                               "NB"="New Brunswick",
-                                               "YT"="Yukon",
-                                               "PE"="Prince Edward Island",
-                                               "NT & NU"="Northwest Territories and Nunavut"),
-                               Prov=fct_collapse(Prov,
-                                                 "TERR" = c("NT", "NU","YT","NT & NU"),
-                                                 "ATL" = c("NL", "NB","NS","PE")),
-                               Sector=gsub("Emissions Intensive & Trade Exposed Industries","Heavy Industry",Trends.Description))%>%
-    group_by(Year, Prov,Sector) %>% summarize (CO2E=sum(as.numeric(CO2E),na.rm = T)) %>% ungroup()%>%
-    rename(GHGs=CO2E)%>%          
-    select(Sector,Prov,Year,GHGs)
-  
-  #re-order east to west
-  new_nir$Prov<-factor(new_nir$Prov, levels=c("Canada" ,"BC","AB" ,"SK","MB", "ON",     "QC" ,  "ATL" ,   "TERR"  ))
-  new_nir
-  }
-bitumen_year<-ST53_data %>% group_by(year,Month) %>% summarize(Bitumen=sum(Bitumen ,na.rm = T)*6.2929*days_in_month(unique(Month)),
-                                                               Steam=sum(Steam ,na.rm = T)*6.2929*days_in_month(unique(Month)))%>% group_by(year)%>%  summarize(Bitumen=sum(Bitumen ,na.rm = T),Steam=sum(Steam,na.rm = T))
-in_situ_nir<-get_new_nir() %>% filter(Sector=="In-situ Bitumen",Prov=="AB") %>% left_join(bitumen_year,by=c("Year"="year"))
-in_situ_nir<-na.omit(in_situ_nir)
-in_situ_nir<-in_situ_nir %>% mutate(ghg_bbl=GHGs*10^6/(Bitumen),SOR=Steam/Bitumen,Bitumen=Bitumen/1000/365)
+<!-- #use NIR_prelim -->
+<!-- get_new_nir<-function() { -->
+<!--   download.file("http://data.ec.gc.ca/data/substances/monitor/canada-s-official-greenhouse-gas-inventory/GHG_Econ_Can_Prov_Terr.csv","canada_ghg.csv") -->
 
-```
+<!--   #temp_nir<-read.csv("canada_ghg_prelimi.csv",stringsAsFactors = F) -->
+<!--   nir_2018<-read.csv("canada_ghg.csv",stringsAsFactors = F) -->
 
-Now, if we look at these data, we can definitely see the, at best, flatlined in-situ emissions per barrel data since 2009 and increasing since 2015.  Unfortunately, we don't have 2018 or 2019 emissions data yet, so it's a wait-and-see, I guess. 
+<!--   main_sectors<-c( -->
+<!--     "Oil and Gas",         -->
+<!--     "Electricity",                                          -->
+<!--     "Transportation", -->
+<!--     "Heavy Industry", -->
+<!--     "Buildings", -->
+<!--     "Agriculture", -->
+<!--     "Waste", -->
+<!--     "Coal Production", -->
+<!--     "Light Manufacturing", -->
+<!--     "Construction", -->
+<!--     "Forest Resources") -->
 
-`r kable(in_situ_nir%>%select(-c(1,2,6)),digits=c(0,1,0,3,2),col.names=c("Year","GHGs (Mt)","Bitumen Production (Barrels Per Day)","GHG per Barrel","Average Steam-Oil Ratio"))%>%kable_styling()`
+<!--   new_nir<-nir_2018 %>% mutate(Prov=as.factor(Province.Territory), -->
+<!--                                Prov=fct_recode(Prov,"AB"="Alberta", -->
+<!--                                                "BC"="British Columbia", -->
+<!--                                                "NL"="Newfoundland and Labrador", -->
+<!--                                                "MB"="Manitoba", -->
+<!--                                                "SK"="Saskatchewan", -->
+<!--                                                "NS"="Nova Scotia", -->
+<!--                                                "ON"="Ontario", -->
+<!--                                                "NT"="Northwest Territories", -->
+<!--                                                "QC"="Quebec", -->
+<!--                                                "NU"="Nunavut", -->
+<!--                                                "NB"="New Brunswick", -->
+<!--                                                "YT"="Yukon", -->
+<!--                                                "PE"="Prince Edward Island", -->
+<!--                                                "NT & NU"="Northwest Territories and Nunavut"), -->
+<!--                                Prov=fct_collapse(Prov, -->
+<!--                                                  "TERR" = c("NT", "NU","YT","NT & NU"), -->
+<!--                                                  "ATL" = c("NL", "NB","NS","PE")), -->
+<!--                                Sector=gsub("Emissions Intensive & Trade Exposed Industries","Heavy Industry",Trends.Description))%>% -->
+<!--     group_by(Year, Prov,Sector) %>% summarize (CO2E=sum(as.numeric(CO2E),na.rm = T)) %>% ungroup()%>% -->
+<!--     rename(GHGs=CO2E)%>%           -->
+<!--     select(Sector,Prov,Year,GHGs) -->
+
+<!--   #re-order east to west -->
+<!--   new_nir$Prov<-factor(new_nir$Prov, levels=c("Canada" ,"BC","AB" ,"SK","MB", "ON",     "QC" ,  "ATL" ,   "TERR"  )) -->
+<!--   new_nir -->
+<!--   } -->
+<!-- bitumen_year<-ST53_data %>% group_by(year,Month) %>% summarize(Bitumen=sum(Bitumen ,na.rm = T)*6.2929*days_in_month(unique(Month)), -->
+<!--                                                                Steam=sum(Steam ,na.rm = T)*6.2929*days_in_month(unique(Month)))%>% group_by(year)%>%  summarize(Bitumen=sum(Bitumen ,na.rm = T),Steam=sum(Steam,na.rm = T)) -->
+<!-- in_situ_nir<-get_new_nir() %>% filter(Sector=="In-situ Bitumen",Prov=="AB") %>% left_join(bitumen_year,by=c("Year"="year")) -->
+<!-- in_situ_nir<-na.omit(in_situ_nir) -->
+<!-- in_situ_nir<-in_situ_nir %>% mutate(ghg_bbl=GHGs*10^6/(Bitumen),SOR=Steam/Bitumen,Bitumen=Bitumen/1000/365) -->
+
+<!-- ``` -->
+
+<!-- Now, if we look at these data, we can definitely see the, at best, flatlined in-situ emissions per barrel data since 2009 and increasing since 2015.  Unfortunately, we don't have 2018 or 2019 emissions data yet, so it's a wait-and-see, I guess.  -->
 
 
 
