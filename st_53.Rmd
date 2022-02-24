@@ -9,7 +9,6 @@ output:
       after_body: 
       theme: lumen
   always_allow_html: yes
-
 ---
 
 We hear a lot about how performance in the oil sands is improving steadily in terms of its emissions intensity, and one of the ways we can assess that is looking at project-level data for in situ projects' use of steam. While there isn't a 1:1 relationship between aggregate use of steam and aggregate GHG emissions, it will be strongly correlated.  This also gets us around the question of looking at emissions which include cogeneration of power and down to the direct use of the key input to production, which is steam.
@@ -115,6 +114,7 @@ st_53_online<-function(download=F){
   #every year is xls except for 2015 which is an xlsx file
   #each file contains a worksheet for bitumen, produced water, and steam usage.
   years<-seq(2010,year(Sys.Date()))
+  years<-seq(2010,2021)
   data_store <- list()
   for(year in years){
     #year<-2015
@@ -445,7 +445,7 @@ scheme_data<-SAGD_data %>% filter(`Scheme Name`==scheme_name) %>% filter(Bitumen
 plot_a<-ggplot(scheme_data)+
   #ggplot(SAGD_data)+ #Foster Creek
   geom_line(aes(Date,Steam*6.2929/10^3))+
-  guides(colour=F)+
+  guides(colour="none")+
   scale_x_date(date_breaks = "12 months", date_labels =  "%b\n%Y",expand=c(0,0)) +
   scale_y_continuous(expand = c(0,0),breaks = pretty_breaks())+
   labs(y="Steam Production (1000 barrels per day)",x="",
@@ -454,7 +454,7 @@ plot_a<-ggplot(scheme_data)+
 plot_b<-ggplot(scheme_data)+
   #ggplot(SAGD_data)+ #Foster Creek
   geom_line(aes(Date,Bitumen*6.2929/10^3))+
-  guides(colour=F)+
+  guides(colour="none")+
   scale_x_date(date_breaks = "12 months", date_labels =  "%b\n%Y",expand=c(0,0)) +
   scale_y_continuous(expand = c(0,0),breaks = pretty_breaks())+
   #geom_hline(yintercept = 0) + 
@@ -466,7 +466,7 @@ plot_c<-ggplot(scheme_data)+
   #ggplot(SAGD_data)+ #Foster Creek
   geom_line(aes(Date,pmin(10,sor)))+
   geom_line(aes(Date,mean_sor),linetype=2)+
-  guides(colour=F)+
+  guides(colour="none")+
   #scale_x_date(name=NULL,date_breaks = "24 months", date_labels =  "%b\n%Y",expand=c(0,0)) +
   scale_x_date(date_breaks = "12 months", date_labels =  "%b\n%Y",expand=c(0,0)) +
   scale_y_continuous(expand = c(0,0),breaks = pretty_breaks())+
@@ -479,7 +479,7 @@ plot_c<-ggplot(scheme_data)+
 plot_d<-ggplot(scheme_data)+
   #ggplot(SAGD_data)+ #Foster Creek
   geom_line(aes(Date,pmin(10,cumul_sor)))+
-  guides(colour=F)+
+  guides(colour="none")+
   #scale_x_date(name=NULL,date_breaks = "24 months", date_labels =  "%b\n%Y",expand=c(0,0)) +
   scale_x_date(date_breaks = "12 months", date_labels =  "%b\n%Y",expand=c(0,0)) +
   scale_y_continuous(expand = c(0,0),breaks = pretty_breaks())+
