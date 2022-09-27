@@ -114,7 +114,7 @@ st_53_online<-function(download=F){
   #every year is xls except for 2015 which is an xlsx file
   #each file contains a worksheet for bitumen, produced water, and steam usage.
   years<-seq(2010,year(Sys.Date()))
-  years<-seq(2010,2021)
+  #years<-seq(2010,2021)
   data_store <- list()
   for(year in years){
     #year<-2015
@@ -126,13 +126,14 @@ st_53_online<-function(download=F){
       filename<-paste("st53_",year,".xlsx",sep="")
     address<-paste("https://www.aer.ca/documents/sts/ST53/ST53_",year,"-12.xlsx",sep="")
     }
-    if(year==2021){
+    if(year==2022){
       filename<-paste("st53_",year,".xls",sep="")
       address<-paste("https://www.aer.ca/documents/sts/ST53/ST53_Current.xls",sep="")
     }
     if(download==T)
       download.file(address,filename,mode = "wb")
-  #read the bitumen production data. Units are Crude Bitumen Production Rates Per Calendar Day (m³)
+  
+      #read the bitumen production data. Units are Crude Bitumen Production Rates Per Calendar Day (m³)
     bitumen_data <- read_excel(filename, sheet = "BITUMEN", skip = 3)
     bitumen_data<-bitumen_data[!is.na(bitumen_data$`Approval Number`),]
     bitumen_data$Operator<-gsub(" \\(¹\\)","",bitumen_data$Operator)
