@@ -1,7 +1,7 @@
 ---
-title: <center>ST 53 SAGD Data</center>
-author: <center>Andrew Leach</center>
-date: <center>`r format(Sys.time(), '%d %B, %Y')`</center>
+title: ST 53 SAGD Data
+author: Andrew Leach
+date: "`r format(Sys.time(), '%d %B, %Y')`"
 output:
   html_document:
       code_folding: hide
@@ -30,6 +30,15 @@ library(readxl)
 library(viridis)
 library(patchwork)
 library(kableExtra)
+
+knitr::opts_chunk$set(
+                      message=F,
+                      warning=F,
+#                      fig.retina=3,
+#                      dpi = 300,
+#                      fig.align = "center",
+NULL
+)
 
 colors_tableau10 <- function()
 {
@@ -113,7 +122,7 @@ fix_names<-function(data_sent){
 st_53_online<-function(download=F){
   #every year is xls except for 2015 which is an xlsx file
   #each file contains a worksheet for bitumen, produced water, and steam usage.
-  years<-seq(2010,year(Sys.Date()))
+  years<-seq(2010,year(Sys.Date()-months(2))) #2 month data lag
   #years<-seq(2010,2021)
   data_store <- list()
   for(year in years){
