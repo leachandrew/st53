@@ -586,6 +586,11 @@ sagd_plot("Primrose and Wolf Lake")
 sagd_plot("Cold Lake")
 ```
 
+### Surmont
+
+```{r fig.width=12, fig.height=8, scheme_plot_12, cache=FALSE}
+sagd_plot("Surmont")
+```
 
 
 <!-- # Emissions Implications -->
