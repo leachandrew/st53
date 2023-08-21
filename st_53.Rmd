@@ -135,7 +135,7 @@ st_53_online<-function(download=F){
       filename<-paste("st53_",year,".xlsx",sep="")
     address<-paste("https://www.aer.ca/documents/sts/ST53/ST53_",year,"-12.xlsx",sep="")
     }
-    if(year==2022){
+    if(year==2023){
       filename<-paste("st53_",year,".xls",sep="")
       address<-paste("https://www.aer.ca/documents/sts/ST53/ST53_Current.xls",sep="")
     }
@@ -225,7 +225,7 @@ df_project<- ST53_data %>% filter(`Recovery Method`=="Commercial-SAGD" |`Recover
   group_by(`Scheme Name`) %>% 
   #figure out total bitumen production, steam production, and water production
   summarise(Operator=last(Operator),steam=sum(Steam,na.rm = T),bitumen=sum(Bitumen,na.rm = T),Bitumen=last(Bitumen)*6.2929,`Recovery Method`=last(`Recovery Method`))%>%
-  arrange(-Bitumen)%>% mutate(`Scheme Name`=as_factor(`Scheme Name`),`Scheme Name`=fct_other(`Scheme Name`,keep = head(`Scheme Name`,10)),`Scheme Name`=fct_explicit_na(`Scheme Name`, na_level = "Other")) %>% mutate(Operator=if_else(`Scheme Name`=="Other","Other",Operator)) %>%
+  arrange(-Bitumen)%>% mutate(`Scheme Name`=as_factor(`Scheme Name`),`Scheme Name`=fct_other(`Scheme Name`,keep = as.character(head(`Scheme Name`,10))),`Scheme Name`=fct_na_value_to_level(`Scheme Name`,level = "Other")) %>% mutate(Operator=if_else(`Scheme Name`=="Other","Other",Operator)) %>%
   group_by(`Scheme Name`,Operator)%>%
 summarise(CSOR=sum(steam,na.rm = T)/sum(bitumen,na.rm = T),
           Bitumen=sum(Bitumen,na.rm = TRUE),
