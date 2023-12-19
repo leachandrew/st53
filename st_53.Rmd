@@ -139,8 +139,12 @@ st_53_online<-function(download=F){
       filename<-paste("st53_",year,".xls",sep="")
       address<-paste("https://www.aer.ca/documents/sts/ST53/ST53_Current.xls",sep="")
     }
+    #remove the current file
+    if(download==T & year==2023)
+     file.remove(filename)
     if(download==T)
-      download.file(address,filename,mode = "wb")
+      if(!file.exists(filename))
+        download.file(address,filename,mode = "wb")
   
       #read the bitumen production data. Units are Crude Bitumen Production Rates Per Calendar Day (m³)
     bitumen_data <- read_excel(filename, sheet = "BITUMEN", skip = 3)

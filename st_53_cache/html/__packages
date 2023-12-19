@@ -1,3 +1,10 @@
+base
+methods
+datasets
+utils
+grDevices
+graphics
+stats
 tidyverse
 ggplot2
 tibble
@@ -7,9 +14,8 @@ purrr
 dplyr
 stringr
 forcats
-scales
-timechange
 lubridate
+scales
 reshape2
 knitr
 prettydoc
