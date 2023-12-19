@@ -245,7 +245,9 @@ summarise(CSOR=sum(steam,na.rm = T)/sum(bitumen,na.rm = T),
 
 df_year<-df1 %>% group_by(year,`Recovery Method`) %>% summarise(Bitumen=mean(Bitumen)*6.2929,SOR=mean(SOR))%>% ungroup()%>%
   #mutate(rec2=`Recovery Method`)%>%
-  pivot_wider(names_from = c(`Recovery Method`), values_from = c(Bitumen,SOR))
+  pivot_wider(names_from = c(`Recovery Method`), values_from = c(Bitumen,SOR))%>%
+  mutate(Total_Bitumen=`Bitumen_Commercial-CSS`+`Bitumen_Commercial-SAGD`)%>%
+  relocate(Total_Bitumen,.after=3)
 
 ```
 
@@ -260,7 +262,7 @@ The first thing we might be interested in is how steam use per barrel has evolve
 
 ## Bitumen Production from Steam-Assisted Gravity Drainage and Cyclic Steam Stimulation Regimes in Alberta
 
-`r df_year%>%kable(digits=c(0,0,0,2,2),align=c("l","c","c","c","c"),col.names=c("Year","CSS","SAGD","CSS","SAGD"))%>%kable_styling()%>%add_header_above(c(" " = 1, "Bitumen Production" = 2, "Steam-to-oil Ratio" = 2))%>%add_header_above(c(" " = 1, "Annual, Production-Weighted Average Performance Data" = 4))`
+`r df_year%>%kable(digits=c(0,0,0,0,2,2),align=c("l","c","c","c","c","c"),col.names=c("Year","Commercial CSS","Commercial SAGD","Commercial Total","CSS","SAGD"))%>%kable_styling()%>%add_header_above(c(" " = 1, "Bitumen Production" = 3, "Steam-to-oil Ratio" = 2))%>%add_header_above(c(" " = 1, "Annual, Production-Weighted Average Performance Data" = 5))`
 
    
   

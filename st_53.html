@@ -934,7 +934,9 @@ summarise(CSOR=sum(steam,na.rm = T)/sum(bitumen,na.rm = T),
 
 df_year&lt;-df1 %&gt;% group_by(year,`Recovery Method`) %&gt;% summarise(Bitumen=mean(Bitumen)*6.2929,SOR=mean(SOR))%&gt;% ungroup()%&gt;%
   #mutate(rec2=`Recovery Method`)%&gt;%
-  pivot_wider(names_from = c(`Recovery Method`), values_from = c(Bitumen,SOR))</code></pre>
+  pivot_wider(names_from = c(`Recovery Method`), values_from = c(Bitumen,SOR))%&gt;%
+  mutate(Total_Bitumen=`Bitumen_Commercial-CSS`+`Bitumen_Commercial-SAGD`)%&gt;%
+  relocate(Total_Bitumen,.after=3)</code></pre>
 <p>There are a few very large projects, which you can see listed
 here.</p>
 <div id="bitumen-production-from-steam-assisted-gravity-drainage-and-cyclic-steam-stimulation-regimes-in-alberta" class="section level2">
@@ -1162,7 +1164,7 @@ Steam Stimulation Regimes in Alberta</h2>
 <tr>
 <th style="empty-cells: hide;border-bottom:hidden;" colspan="1">
 </th>
-<th style="border-bottom:hidden;padding-bottom:0; padding-left:3px;padding-right:3px;text-align: center; " colspan="4">
+<th style="border-bottom:hidden;padding-bottom:0; padding-left:3px;padding-right:3px;text-align: center; " colspan="5">
 <div style="border-bottom: 1px solid #ddd; padding-bottom: 5px; ">
 Annual, Production-Weighted Average Performance Data
 </div>
@@ -1171,7 +1173,7 @@ Annual, Production-Weighted Average Performance Data
 <tr>
 <th style="empty-cells: hide;border-bottom:hidden;" colspan="1">
 </th>
-<th style="border-bottom:hidden;padding-bottom:0; padding-left:3px;padding-right:3px;text-align: center; " colspan="2">
+<th style="border-bottom:hidden;padding-bottom:0; padding-left:3px;padding-right:3px;text-align: center; " colspan="3">
 <div style="border-bottom: 1px solid #ddd; padding-bottom: 5px; ">
 Bitumen Production
 </div>
@@ -1187,10 +1189,13 @@ Steam-to-oil Ratio
 Year
 </th>
 <th style="text-align:center;">
-CSS
+Commercial CSS
 </th>
 <th style="text-align:center;">
-SAGD
+Commercial SAGD
+</th>
+<th style="text-align:center;">
+Commercial Total
 </th>
 <th style="text-align:center;">
 CSS
@@ -1212,6 +1217,9 @@ SAGD
 317666
 </td>
 <td style="text-align:center;">
+556367
+</td>
+<td style="text-align:center;">
 3.83
 </td>
 <td style="text-align:center;">
@@ -1227,6 +1235,9 @@ SAGD
 </td>
 <td style="text-align:center;">
 374347
+</td>
+<td style="text-align:center;">
+635526
 </td>
 <td style="text-align:center;">
 3.64
@@ -1246,6 +1257,9 @@ SAGD
 487049
 </td>
 <td style="text-align:center;">
+746517
+</td>
+<td style="text-align:center;">
 3.64
 </td>
 <td style="text-align:center;">
@@ -1261,6 +1275,9 @@ SAGD
 </td>
 <td style="text-align:center;">
 580990
+</td>
+<td style="text-align:center;">
+833535
 </td>
 <td style="text-align:center;">
 3.67
@@ -1280,6 +1297,9 @@ SAGD
 733838
 </td>
 <td style="text-align:center;">
+976609
+</td>
+<td style="text-align:center;">
 3.66
 </td>
 <td style="text-align:center;">
@@ -1295,6 +1315,9 @@ SAGD
 </td>
 <td style="text-align:center;">
 842062
+</td>
+<td style="text-align:center;">
+1105360
 </td>
 <td style="text-align:center;">
 4.13
@@ -1314,6 +1337,9 @@ SAGD
 933062
 </td>
 <td style="text-align:center;">
+1170047
+</td>
+<td style="text-align:center;">
 4.56
 </td>
 <td style="text-align:center;">
@@ -1329,6 +1355,9 @@ SAGD
 </td>
 <td style="text-align:center;">
 1099073
+</td>
+<td style="text-align:center;">
+1345112
 </td>
 <td style="text-align:center;">
 4.61
@@ -1348,6 +1377,9 @@ SAGD
 1166174
 </td>
 <td style="text-align:center;">
+1384108
+</td>
+<td style="text-align:center;">
 5.13
 </td>
 <td style="text-align:center;">
@@ -1363,6 +1395,9 @@ SAGD
 </td>
 <td style="text-align:center;">
 1152257
+</td>
+<td style="text-align:center;">
+1373627
 </td>
 <td style="text-align:center;">
 5.08
@@ -1382,6 +1417,9 @@ SAGD
 1130321
 </td>
 <td style="text-align:center;">
+1344210
+</td>
+<td style="text-align:center;">
 5.03
 </td>
 <td style="text-align:center;">
@@ -1397,6 +1435,9 @@ SAGD
 </td>
 <td style="text-align:center;">
 1294728
+</td>
+<td style="text-align:center;">
+1509419
 </td>
 <td style="text-align:center;">
 5.18
@@ -1416,6 +1457,9 @@ SAGD
 1304648
 </td>
 <td style="text-align:center;">
+1524755
+</td>
+<td style="text-align:center;">
 5.03
 </td>
 <td style="text-align:center;">
@@ -1431,6 +1475,9 @@ SAGD
 </td>
 <td style="text-align:center;">
 1317951
+</td>
+<td style="text-align:center;">
+1537357
 </td>
 <td style="text-align:center;">
 4.98
