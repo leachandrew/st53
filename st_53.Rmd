@@ -122,7 +122,8 @@ fix_names<-function(data_sent){
 st_53_online<-function(download=F){
   #every year is xls except for 2015 which is an xlsx file
   #each file contains a worksheet for bitumen, produced water, and steam usage.
-  years<-seq(2010,year(Sys.Date()-months(2))) #2 month data lag
+  years<-seq(2010,year(Sys.Date()-months(4))) #2 month data lag
+  
   #years<-seq(2010,2021)
   data_store <- list()
   for(year in years){
@@ -141,7 +142,8 @@ st_53_online<-function(download=F){
     }
     #remove the current file
     if(download==T & year==2023)
-     file.remove(filename)
+     if(file.exists(filename))
+       file.remove(filename)
     if(download==T)
       if(!file.exists(filename))
         download.file(address,filename,mode = "wb")
