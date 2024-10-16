@@ -98,7 +98,7 @@ fix_names<-function(data_sent){
     #Christina Lake
     grepl("MEG", Operator) & grepl("Christina", `Scheme Name`)  ~ "Christina Lake (MEG)",
     grepl("Meg", Operator) & grepl("Christina", `Scheme Name`)  ~ "Christina Lake (MEG)",
-    grepl("Cenovus", Operator) & grepl("Christina", `Scheme Name`)  ~ "Christina Lake (FCCL)",
+    grepl("Cenovus", Operator) & grepl("Christina", `Scheme Name`)  ~ "Christina Lake (CVE)",
     #Mackay River (Suncor or Brion)
     grepl("Suncor", Operator) & grepl("Mackay", `Scheme Name`)  ~ "MacKay River (Suncor)",
     grepl("Suncor", Operator) & grepl("Mckay", `Scheme Name`)  ~ "MacKay River (Suncor)",
@@ -136,7 +136,7 @@ st_53_online<-function(download=F){
       filename<-paste("st53_",year,".xlsx",sep="")
     address<-paste("https://www.aer.ca/documents/sts/ST53/ST53_",year,"-12.xlsx",sep="")
     }
-    if(year==2023){
+    if(year==2024){
       filename<-paste("st53_",year,".xls",sep="")
       address<-paste("https://www.aer.ca/documents/sts/ST53/ST53_Current.xls",sep="")
     }
@@ -534,6 +534,13 @@ sagd_plot("Kirby")
 sagd_plot("Firebag")
 ```
 
+### Christina Lake (CVE)
+
+```{r fig.width=12, fig.height=8, scheme_plot_cl, cache=FALSE}
+
+sagd_plot("Christina Lake (CVE)")
+
+```
 
 
 ### Foster Creek (Cenovus)
