@@ -122,7 +122,7 @@ fix_names<-function(data_sent){
 st_53_online<-function(download=F){
   #every year is xls except for 2015 which is an xlsx file
   #each file contains a worksheet for bitumen, produced water, and steam usage.
-  years<-seq(2010,year(Sys.Date()-months(4))) #2 month data lag
+  years<-seq(2010,year(Sys.Date()-months(3))) #2 month data lag
   
   #years<-seq(2010,2021)
   data_store <- list()
@@ -136,12 +136,12 @@ st_53_online<-function(download=F){
       filename<-paste("st53_",year,".xlsx",sep="")
     address<-paste("https://www.aer.ca/documents/sts/ST53/ST53_",year,"-12.xlsx",sep="")
     }
-    if(year==2024){
+    if(year==2025){
       filename<-paste("st53_",year,".xls",sep="")
       address<-paste("https://www.aer.ca/documents/sts/ST53/ST53_Current.xls",sep="")
     }
     #remove the current file
-    if(download==T & year==2023)
+    if(download==T & year==2025)
      if(file.exists(filename))
        file.remove(filename)
     if(download==T)
