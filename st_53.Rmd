@@ -280,7 +280,7 @@ prod_graph<-ggplot(df1,aes(Date,Bitumen*6.2929/10^3,group=`Recovery Method`,colo
   geom_area(position = "stack") +
   scale_colour_viridis("Recovery Method",discrete=TRUE)+   
   scale_fill_viridis("Recovery Method",discrete=TRUE)+   
-  scale_x_date(date_breaks = "12 months", date_labels =  "%b\n%Y",expand=c(0,0)) +
+  scale_x_date(date_breaks = "2 years", date_labels =  "%b\n%Y",expand=c(0,0)) +
   #scale_y_continuous(limits=c(0,6),breaks=seq(0,6,1))+
   theme_minimal()+weekly_small()+
   labs(y="Bitumen production (1000s of barrels per day)",#x="Date",
@@ -296,7 +296,7 @@ water_graph<-ggplot(df1,aes(Date,water/Bitumen,group=`Recovery Method`,colour=`R
   geom_line(size=2)+
   scale_colour_viridis("Recovery Method",discrete=TRUE)+   
   scale_fill_viridis("Recovery Method",discrete=TRUE)+   
-  scale_x_date(date_breaks = "12 months", date_labels =  "%b\n%Y",expand=c(0,0)) +
+  scale_x_date(date_breaks = "2 years", date_labels =  "%b\n%Y",expand=c(0,0)) +
   #scale_y_continuous(limits=c(0,6),breaks=seq(0,6,1))+
   theme_minimal()+weekly_small()+
   labs(y="Water production ratio (barrels per barrel bitumen)",#x="Date",
@@ -315,7 +315,7 @@ sor_graph<-ggplot(df1,aes(Date,SOR,group=`Recovery Method`,colour=`Recovery Meth
   geom_line(data=filter(df1,`Recovery Method`=="Commercial-SAGD"),aes(Date,monthly_sor,colour="Production-weighted average"),size=2) +
   scale_colour_viridis("Recovery Method:",discrete=TRUE)+   
   scale_fill_viridis("Recovery Method:",discrete=TRUE)+   
-  scale_x_date(date_breaks = "12 months", date_labels =  "%b\n%Y",expand=c(0,0)) +
+  scale_x_date(date_breaks = "2 years", date_labels =  "%b\n%Y",expand=c(0,0)) +
   #scale_y_continuous(limits=c(0,6),breaks=seq(0,6,1))+
   scale_y_continuous(breaks=pretty_breaks())+
   theme_minimal()+weekly_small()+
@@ -334,7 +334,7 @@ SAGD_SOR<-ggplot(filter(df1,`Recovery Method`=="Commercial-SAGD"),aes(Date,SOR,g
   geom_line(size=2) +
   scale_colour_viridis("Recovery Method:",discrete=TRUE)+   
   scale_fill_viridis("Recovery Method:",discrete=TRUE)+   
-  scale_x_date(date_breaks = "12 months", date_labels =  "%b\n%Y",expand=c(0,0)) +
+  scale_x_date(date_breaks = "2 years", date_labels =  "%b\n%Y",expand=c(0,0)) +
   scale_y_continuous()+
   theme_minimal()+weekly_small()+
   labs(y="Steam:bitumen ratio",#x="Date",
@@ -408,7 +408,7 @@ p1<-ggplot(filter(df2),aes(Date,cumul_sor,group=`Recovery Method`,colour=`Recove
   geom_line(size=2) +
   scale_colour_viridis("Recovery Method:",discrete=TRUE)+   
   scale_fill_viridis("Recovery Method:",discrete=TRUE)+   
-  scale_x_date(date_breaks = "12 months", date_labels =  "%b\n%Y",expand=c(0,0)) +
+  scale_x_date(date_breaks = "2 years", date_labels =  "%b\n%Y",expand=c(0,0)) +
   scale_y_continuous()+
   theme_minimal()+weekly_small()+
   labs(y="Cumulative steam:bitumen ratio",#x="Date",
@@ -418,7 +418,7 @@ p2<-ggplot(filter(df2),aes(Date,Steam/Bitumen,group=`Recovery Method`,colour=`Re
   geom_line(size=2) +
   scale_colour_viridis("Recovery Method:",discrete=TRUE)+   
   scale_fill_viridis("Recovery Method:",discrete=TRUE)+   
-  scale_x_date(date_breaks = "12 months", date_labels =  "%b\n%Y",expand=c(0,0)) +
+  scale_x_date(date_breaks = "2 years", date_labels =  "%b\n%Y",expand=c(0,0)) +
   scale_y_continuous()+
   theme_minimal()+weekly_small()+
   labs(y="Monthly steam:bitumen ratio",#x="Date",
@@ -464,7 +464,7 @@ plot_a<-ggplot(scheme_data)+
   #ggplot(SAGD_data)+ #Foster Creek
   geom_line(aes(Date,Steam*6.2929/10^3))+
   guides(colour="none")+
-  scale_x_date(date_breaks = "12 months", date_labels =  "%b\n%Y",expand=c(0,0)) +
+  scale_x_date(date_breaks = "2 years", date_labels =  "%b\n%Y",expand=c(0,0)) +
   scale_y_continuous(expand = c(0,0),breaks = pretty_breaks())+
   labs(y="Steam Production (1000 barrels per day)",x="",
        title=paste(scheme_name,"Steam Production"))+
@@ -473,7 +473,7 @@ plot_b<-ggplot(scheme_data)+
   #ggplot(SAGD_data)+ #Foster Creek
   geom_line(aes(Date,Bitumen*6.2929/10^3))+
   guides(colour="none")+
-  scale_x_date(date_breaks = "12 months", date_labels =  "%b\n%Y",expand=c(0,0)) +
+  scale_x_date(date_breaks = "2 years", date_labels =  "%b\n%Y",expand=c(0,0)) +
   scale_y_continuous(expand = c(0,0),breaks = pretty_breaks())+
   #geom_hline(yintercept = 0) + 
   labs(y="Bitumen Production (1000 barrels per day)",x="",
@@ -486,7 +486,7 @@ plot_c<-ggplot(scheme_data)+
   geom_line(aes(Date,mean_sor),linetype=2)+
   guides(colour="none")+
   #scale_x_date(name=NULL,date_breaks = "24 months", date_labels =  "%b\n%Y",expand=c(0,0)) +
-  scale_x_date(date_breaks = "12 months", date_labels =  "%b\n%Y",expand=c(0,0)) +
+  scale_x_date(date_breaks = "2 years", date_labels =  "%b\n%Y",expand=c(0,0)) +
   scale_y_continuous(expand = c(0,0),breaks = pretty_breaks())+
   #geom_hline(yintercept = 0) + 
   labs(y="Steam-to-oil ratio (barrels per barrel)",x="Production Month",
@@ -499,7 +499,7 @@ plot_d<-ggplot(scheme_data)+
   geom_line(aes(Date,pmin(10,cumul_sor)))+
   guides(colour="none")+
   #scale_x_date(name=NULL,date_breaks = "24 months", date_labels =  "%b\n%Y",expand=c(0,0)) +
-  scale_x_date(date_breaks = "12 months", date_labels =  "%b\n%Y",expand=c(0,0)) +
+  scale_x_date(date_breaks = "2 years", date_labels =  "%b\n%Y",expand=c(0,0)) +
   scale_y_continuous(expand = c(0,0),breaks = pretty_breaks())+
   #geom_hline(yintercept = 0) + 
   labs(y="Cumulative steam-to-oil ratio (barrels per barrel)",x="Production Month",
