@@ -122,7 +122,7 @@ fix_names<-function(data_sent){
 st_53_online<-function(download=F){
   #every year is xls except for 2015 which is an xlsx file
   #each file contains a worksheet for bitumen, produced water, and steam usage.
-  years<-seq(2010,year(Sys.Date()-months(3))) #2 month data lag
+  years<-seq(2000,year(Sys.Date()-months(3))) #2 month data lag
   
   #years<-seq(2010,2021)
   data_store <- list()
@@ -132,6 +132,10 @@ st_53_online<-function(download=F){
     #https://www.aer.ca/documents/sts/ST53/ST53_2009-12.xls
     address<-paste("https://www.aer.ca/documents/sts/ST53/ST53_",year,"-12.xls",sep="")
     filename<-paste("st53_",year,".xls",sep="")
+    if(year<2010){
+      filename<-paste("st53_",year,".xlsx",sep="")
+      address<-NA
+    }
     if(year==2015){
       filename<-paste("st53_",year,".xlsx",sep="")
     address<-paste("https://www.aer.ca/documents/sts/ST53/ST53_",year,"-12.xlsx",sep="")
@@ -192,7 +196,7 @@ st_53_online<-function(download=F){
     bitumen_data$year<-year
     bitumen_data$Bitumen<-as.numeric(bitumen_data$Bitumen)
     #here, we need to combine within schemes since there are a couple of Schemes with two separate approvals
-    bitumen_data<-bitumen_data %>% group_by(Operator,`Scheme Name`,Area,`Recovery Method`,Month,Date,year) %>%
+    bitumen_data<-bitumen_data %>% group_by(Operator,`Scheme Name`,Area,`Recovery Method`,`Approval Number`,Month,Date,year) %>%
       summarize(Bitumen=sum(Bitumen,na.rm = T),Steam=sum(Steam,na.rm = T),water=sum(water,na.rm = T)) %>% ungroup()
     
     bitumen_data$SOR<-bitumen_data$Steam/bitumen_data$Bitumen #do SOR later
@@ -204,7 +208,9 @@ ST53_data
 }
 
 #run the code
-ST53_data  <-st_53_online(download = T)
+ST53_data  <-st_53_online(download = F)
+
+save(ST53_data,file="st53_all.rdata")
 
 ```
 
