@@ -22,8 +22,8 @@ If you're going to run the R code, you'll need a few basic set-up elements to ge
 library(tidyverse)
 library(scales) 
 library(lubridate)
-library(reshape2)
 library(knitr)
+library(reshape2)
 library(prettydoc)
 library(zoo)
 library(readxl)
@@ -525,6 +525,12 @@ plot_d<-ggplot(scheme_data)+
 
 sagd_plot("Christina Lake (MEG)")
 
+```
+
+### Leismer
+
+```{r fig.width=12, fig.height=8, scheme_plot_leismer, cache=FALSE}
+sagd_plot("Leismer")
 ```
 
 
