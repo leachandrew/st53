@@ -496,11 +496,22 @@ SAGD_data <- ST53_data %>% filter(grepl("Commercial",`Recovery Method`),Bitumen>
 sagd_plot<-function(scheme_name){
 scheme_data<-SAGD_data %>% filter(`Scheme Name`==scheme_name) %>% filter(Bitumen>0)%>% mutate(
   year=year(Date),month=1:n()) #first steam in month 30
-plot_a<-ggplot(scheme_data)+
+
+date_span <- diff(range(scheme_data$Date, na.rm = TRUE))
+
+date_breaks <- if (date_span < lubridate::years(2)) {
+  "1 month"
+} else {
+  "2 years"
+}
+
+
+plot_a<-
+  ggplot(scheme_data)+
   #ggplot(SAGD_data)+ #Foster Creek
   geom_line(aes(Date,Steam*6.2929/10^3))+
   guides(colour="none")+
-  scale_x_date(date_breaks = "2 years", date_labels =  "%b\n%Y",expand=c(0,0)) +
+  scale_x_date(date_breaks = date_breaks, date_labels =  "%b\n%Y",expand=c(0,0)) +
   scale_y_continuous(expand = c(0,0),breaks = pretty_breaks())+
   labs(y="Steam Production (1000 barrels per day)",x="",
        title=paste(scheme_name,"Steam Production"))+
@@ -510,7 +521,7 @@ plot_b<-ggplot(scheme_data)+
   #ggplot(SAGD_data)+ #Foster Creek
   geom_line(aes(Date,Bitumen*6.2929/10^3))+
   guides(colour="none")+
-  scale_x_date(date_breaks = "2 years", date_labels =  "%b\n%Y",expand=c(0,0)) +
+  scale_x_date(date_breaks = date_breaks, date_labels =  "%b\n%Y",expand=c(0,0)) +
   scale_y_continuous(expand = c(0,0),breaks = pretty_breaks())+
   #geom_hline(yintercept = 0) + 
   labs(y="Bitumen Production (1000 barrels per day)",x="",
@@ -524,7 +535,7 @@ plot_c<-ggplot(scheme_data)+
   geom_line(aes(Date,mean_sor),linetype=2)+
   guides(colour="none")+
   #scale_x_date(name=NULL,date_breaks = "24 months", date_labels =  "%b\n%Y",expand=c(0,0)) +
-  scale_x_date(date_breaks = "2 years", date_labels =  "%b\n%Y",expand=c(0,0)) +
+  scale_x_date(date_breaks = date_breaks, date_labels =  "%b\n%Y",expand=c(0,0)) +
   scale_y_continuous(expand = c(0,0),breaks = pretty_breaks())+
   #geom_hline(yintercept = 0) + 
   labs(y="Steam-to-oil ratio (barrels per barrel)",x="Production Month",
@@ -538,7 +549,7 @@ plot_d<-ggplot(scheme_data)+
   geom_line(aes(Date,pmin(10,cumul_sor)))+
   guides(colour="none")+
   #scale_x_date(name=NULL,date_breaks = "24 months", date_labels =  "%b\n%Y",expand=c(0,0)) +
-  scale_x_date(date_breaks = "2 years", date_labels =  "%b\n%Y",expand=c(0,0)) +
+  scale_x_date(date_breaks = date_breaks, date_labels =  "%b\n%Y",expand=c(0,0)) +
   scale_y_continuous(expand = c(0,0),breaks = pretty_breaks())+
   #geom_hline(yintercept = 0) + 
   labs(y="Cumulative steam-to-oil ratio (barrels per barrel)",x="Production Month",
@@ -553,13 +564,23 @@ plot_d<-ggplot(scheme_data)+
 ```
 
 
-### Christina Lake (MEG)
+### Christina Lake North (CVE, ex-MEG)
 
 ```{r fig.width=12, fig.height=8, scheme_plot_1, cache=FALSE}
 
 sagd_plot("Christina Lake (ex-MEG)")
+ 
 
 ```
+
+### Narrows Lake (CVE)
+
+```{r fig.width=12, fig.height=8, scheme_plot_narrows, cache=FALSE}
+
+sagd_plot("Narrows Lake")
+
+```
+
 
 ### Leismer
 
