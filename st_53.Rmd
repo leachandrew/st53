@@ -30,6 +30,7 @@ library(readxl)
 library(viridis)
 library(patchwork)
 library(kableExtra)
+library(httr)
 
 knitr::opts_chunk$set(
                       message=F,
@@ -68,6 +69,24 @@ set_png<-function(file_sent,width=1400,height=750,res=130){
 }
 
 
+download_forbidden_file <- function(url, destfile,refer="https://www.aer.ca/") {
+  headers <- c(
+    "User-Agent" = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.14; rv:66.0) Gecko/20100101 Firefox/66.0",
+    "Referer" = refer
+  )
+  r <- GET(
+    url,
+    add_headers(.headers = headers)
+  )
+  stop_for_status(r)
+  writeBin(
+    content(r, "raw"),
+    destfile
+  )
+  invisible(destfile)
+}
+
+
 weekly_small<-function(caption_align=1){
   theme_minimal()+theme(
     plot.margin = margin(.25, .75, .25, .75, "cm"),
@@ -96,8 +115,11 @@ Once you've got the preliminaries of the code, downloading the data is fairly ea
 fix_names<-function(data_sent){
   data_sent<-data_sent %>% mutate(`Scheme Name`= case_when(
     #Christina Lake
-    grepl("MEG", Operator) & grepl("Christina", `Scheme Name`)  ~ "Christina Lake (MEG)",
-    grepl("Meg", Operator) & grepl("Christina", `Scheme Name`)  ~ "Christina Lake (MEG)",
+    grepl("MEG", Operator) & grepl("Christina", `Scheme Name`)  ~ "Christina Lake (ex-MEG)",
+    grepl("Meg", Operator) & grepl("Christina", `Scheme Name`)  ~ "Christina Lake (ex-MEG)",
+    grepl("10773", `Approval Number`)  ~ "Christina Lake (ex-MEG)",
+    
+    
     grepl("Cenovus", Operator) & grepl("Christina", `Scheme Name`)  ~ "Christina Lake (CVE)",
     #Mackay River (Suncor or Brion)
     grepl("Suncor", Operator) & grepl("Mackay", `Scheme Name`)  ~ "MacKay River (Suncor)",
@@ -113,6 +135,7 @@ fix_names<-function(data_sent){
     grepl("Jackfish", `Scheme Name`)  ~ "Jackfish",
     grepl("Lindbergh", `Scheme Name`)  ~ "Lindbergh",
     grepl("Kirby South", `Scheme Name`)  ~ "Kirby",
+    grepl("Tucker", `Scheme Name`)  ~ "Tucker",
     TRUE ~ `Scheme Name`
   )
   )
@@ -122,8 +145,9 @@ fix_names<-function(data_sent){
 st_53_online<-function(download=F){
   #every year is xls except for 2015 which is an xlsx file
   #each file contains a worksheet for bitumen, produced water, and steam usage.
-  years<-seq(2000,year(Sys.Date()-months(3))) #2 month data lag
+  years<-seq(2000,year(Sys.Date() %m-% months(3))) #2 month data lag
   
+
   #years<-seq(2010,2021)
   data_store <- list()
   for(year in years){
@@ -142,15 +166,21 @@ st_53_online<-function(download=F){
     }
     if(year==2025){
       filename<-paste("st53_",year,".xls",sep="")
+      address<-paste("https://www.aer.ca/prd/documents/sts/ST53/ST53_2025.xls",sep="")
+    }
+    if(year==2026){
+      filename<-paste("st53_",year,".xls",sep="")
       address<-paste("https://www.aer.ca/documents/sts/ST53/ST53_Current.xls",sep="")
     }
+
     #remove the current file
-    if(download==T & year==2025)
+    #https://www.aer.ca/documents/sts/ST53/ST53_Current.xls
+    if(download==T & year==2026)
      if(file.exists(filename))
        file.remove(filename)
     if(download==T)
       if(!file.exists(filename))
-        download.file(address,filename,mode = "wb")
+        download_forbidden_file(address,filename)
   
       #read the bitumen production data. Units are Crude Bitumen Production Rates Per Calendar Day (m³)
     bitumen_data <- read_excel(filename, sheet = "BITUMEN", skip = 3)
@@ -208,7 +238,7 @@ ST53_data
 }
 
 #run the code
-ST53_data  <-st_53_online(download = F)
+ST53_data  <-st_53_online(download = T)
 
 save(ST53_data,file="st53_all.rdata")
 
@@ -474,7 +504,8 @@ plot_a<-ggplot(scheme_data)+
   scale_y_continuous(expand = c(0,0),breaks = pretty_breaks())+
   labs(y="Steam Production (1000 barrels per day)",x="",
        title=paste(scheme_name,"Steam Production"))+
-  weekly_small()
+  theme_irpp(base_size = 12)+
+  expand_limits(y=0)
 plot_b<-ggplot(scheme_data)+
   #ggplot(SAGD_data)+ #Foster Creek
   geom_line(aes(Date,Bitumen*6.2929/10^3))+
@@ -485,7 +516,8 @@ plot_b<-ggplot(scheme_data)+
   labs(y="Bitumen Production (1000 barrels per day)",x="",
        title=paste(scheme_name,"Bitumen Production")
   )+
-  weekly_small()
+  theme_irpp(base_size = 12)+
+  expand_limits(y=0)
 plot_c<-ggplot(scheme_data)+
   #ggplot(SAGD_data)+ #Foster Creek
   geom_line(aes(Date,pmin(10,sor)))+
@@ -498,8 +530,9 @@ plot_c<-ggplot(scheme_data)+
   labs(y="Steam-to-oil ratio (barrels per barrel)",x="Production Month",
        title=paste(scheme_name,"Monthly Steam-to-oil Ratio"),
        subtitle="Monthly data capped at SOR of 10",     
-       caption="Dashed line is monthly average for recovery method (SAGD or CSS)")+
-  weekly_small()
+       caption="Dashed line is province-wide monthly average for recovery method (SAGD or CSS)")+
+  theme_irpp(base_size = 12)+
+  expand_limits(y=0)
 plot_d<-ggplot(scheme_data)+
   #ggplot(SAGD_data)+ #Foster Creek
   geom_line(aes(Date,pmin(10,cumul_sor)))+
@@ -512,7 +545,8 @@ plot_d<-ggplot(scheme_data)+
        title=paste(scheme_name,"Cumulative Steam-to-oil Ratio"),
        subtitle="Monthly data capped at CSOR of 10",
        caption="Graphs by Andrew Leach, data via AER")+
-  weekly_small()
+  theme_irpp(base_size = 12)+
+  expand_limits(y=0)
 
 (plot_a + plot_b) / (plot_c+ plot_d)
 }
@@ -523,7 +557,7 @@ plot_d<-ggplot(scheme_data)+
 
 ```{r fig.width=12, fig.height=8, scheme_plot_1, cache=FALSE}
 
-sagd_plot("Christina Lake (MEG)")
+sagd_plot("Christina Lake (ex-MEG)")
 
 ```
 
@@ -586,10 +620,10 @@ sagd_plot("Sunrise")
 ```
 
 
-### Tucker Lake (Husky)
+### Tucker (Strathcona)
 
 ```{r fig.width=12, fig.height=8, scheme_plot_8, cache=FALSE}
-sagd_plot("Tucker Lake")
+sagd_plot("Tucker")
 ```
 
 
