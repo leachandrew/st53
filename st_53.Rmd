@@ -22,9 +22,6 @@ If you're going to run the R code, you'll need a few basic set-up elements to ge
 library(tidyverse)
 library(scales) 
 library(lubridate)
-library(knitr)
-library(reshape2)
-library(prettydoc)
 library(zoo)
 library(readxl)
 library(viridis)
@@ -86,23 +83,6 @@ download_forbidden_file <- function(url, destfile,refer="https://www.aer.ca/") {
   invisible(destfile)
 }
 
-
-weekly_small<-function(caption_align=1){
-  theme_minimal()+theme(
-    plot.margin = margin(.25, .75, .25, .75, "cm"),
-    legend.position = "bottom",
-    legend.margin=margin(c(0,0,0,0),unit="cm"),
-    legend.text = element_text(colour="black", size = 9),
-    plot.caption = element_text(size = 9, face = "italic",hjust=caption_align),
-    plot.title = element_text(size = 12,face = "bold"),
-    plot.subtitle = element_text(size = 11, face = "italic"),
-    panel.grid.minor = element_blank(),
-    text = element_text(size = 11,face = "bold"),
-    axis.title.x = element_text(size = 11,face = "bold", colour="black",margin = margin(t = 15, b = 0)),
-    axis.text = element_text(size = 11,face = "bold", colour="black",margin = margin(t = 10, b = 10)),
-  )
-}
-
 ```
 
 # Download the Data
@@ -115,9 +95,9 @@ Once you've got the preliminaries of the code, downloading the data is fairly ea
 fix_names<-function(data_sent){
   data_sent<-data_sent %>% mutate(`Scheme Name`= case_when(
     #Christina Lake
-    grepl("MEG", Operator) & grepl("Christina", `Scheme Name`)  ~ "Christina Lake (ex-MEG)",
-    grepl("Meg", Operator) & grepl("Christina", `Scheme Name`)  ~ "Christina Lake (ex-MEG)",
-    grepl("10773", `Approval Number`)  ~ "Christina Lake (ex-MEG)",
+    grepl("MEG", Operator) & grepl("Christina", `Scheme Name`)  ~ "Christina Lake North (ex-MEG)",
+    grepl("Meg", Operator) & grepl("Christina", `Scheme Name`)  ~ "Christina Lake North (ex-MEG)",
+    grepl("10773", `Approval Number`)  ~ "Christina Lake North (ex-MEG)",
     
     
     grepl("Cenovus", Operator) & grepl("Christina", `Scheme Name`)  ~ "Christina Lake (CVE)",
@@ -151,7 +131,7 @@ st_53_online<-function(download=F){
   #years<-seq(2010,2021)
   data_store <- list()
   for(year in years){
-    #year<-2015
+    #year<-2026
     #download=T
     #https://www.aer.ca/documents/sts/ST53/ST53_2009-12.xls
     address<-paste("https://www.aer.ca/documents/sts/ST53/ST53_",year,"-12.xls",sep="")
@@ -189,32 +169,32 @@ st_53_online<-function(download=F){
     #take out notes denoted by (*)
     
     IDs<-names(bitumen_data)[1:5]
-    bitumen_data$`Monthly Average`<-NULL
-    bitumen_data<-melt(bitumen_data,id=IDs,measure.vars = month.abb,variable.name = "Month",value.name = "Bitumen")
-    bitumen_data$Month<-match(as.character(bitumen_data$Month),month.abb)
-    bitumen_data <-bitumen_data %>% filter(!is.na(Bitumen))
-    #need to trim the totals from the files here
+    bitumen_data<-bitumen_data %>% select(-`Monthly Average`)%>%
+      pivot_longer(-c(1:5),names_to = "Month",values_to = "Bitumen")%>%
+      mutate(Month=match(as.character(Month),month.abb))%>%
+      filter(!is.na(Bitumen))
     
     #steam data - units are Steam Injection Rates Per Calendar Day (m³)											
     steam_data <- read_excel(filename, sheet = "STEAM", skip = 3)
     steam_data<-steam_data[!is.na(steam_data$`Approval Number`),]
     steam_data$Operator<-gsub(" \\(¹\\)","",steam_data$Operator) #take out notes denoted by       (*)
     IDs<-names(steam_data)[1:5]
-    steam_data$`Monthly Average`<-NULL
-    steam_data<-melt(steam_data,id=IDs,measure.vars = month.abb, variable.name = "Month",value.name = "Steam")
-    steam_data <-steam_data %>% filter(!is.na(Steam))
-    steam_data$Month<-match(as.character(steam_data$Month),month.abb)
     
+    steam_data<-steam_data %>% select(-`Monthly Average`)%>%
+      pivot_longer(-c(1:5),names_to = "Month",values_to = "Steam")%>%
+      mutate(Month=match(as.character(Month),month.abb))%>%
+      filter(!is.na(Steam))
     #water data: Water Production Rates Per Calendar Day (m³)											
     
     water_data <- read_excel(filename, sheet = "WATER", skip = 3)
     water_data<-water_data[!is.na(water_data$`Approval Number`),]
     water_data$Operator<-gsub(" \\(¹\\)","",water_data$Operator) #take out notes denoted by (*)
     IDs<-names(water_data)[1:5]
-    water_data$`Monthly Average`<-NULL
-    water_data<-melt(water_data,id=IDs,measure.vars = month.abb, variable.name = "Month",value.name = "water")
-    water_data <-water_data %>% filter(!is.na(water))
-    water_data$Month<-match(as.character(water_data$Month),month.abb)
+    water_data<-water_data %>% select(-`Monthly Average`)%>%
+      pivot_longer(-c(1:5),names_to = "Month",values_to = "water")%>%
+      mutate(Month=match(as.character(Month),month.abb))%>%
+      filter(!is.na(water))
+    
     
 #merge them all  
         bitumen_data<-bitumen_data %>% left_join(steam_data %>% select(Month,`Approval Number`,Steam))%>%
@@ -306,78 +286,54 @@ The first thing we might be interested in is how steam use per barrel has evolve
   
 ```{r graphs, cache=FALSE,message = FALSE}
                                   
-#df1$Date<-as.Date(paste(df1$year,"-",df1$Month,"-",days_in_month(df1$Month),sep = ""))  
-
-#png<-1
-#if(png==1)#set these to only turn on if you're making PNG graphs
-#  set_png("in_situ_prod.png")
 #convert to 1000s of bbls per day
-prod_graph<-ggplot(df1,aes(Date,Bitumen*6.2929/10^3,group=`Recovery Method`,colour=`Recovery Method`,fill=`Recovery Method`)) +
+prod_graph<-
+  ggplot(df1,aes(Date,Bitumen*6.2929/10^3,group=`Recovery Method`,colour=`Recovery Method`,fill=`Recovery Method`)) +
   geom_area(position = "stack") +
   scale_colour_viridis("Recovery Method",discrete=TRUE)+   
   scale_fill_viridis("Recovery Method",discrete=TRUE)+   
   scale_x_date(date_breaks = "2 years", date_labels =  "%b\n%Y",expand=c(0,0)) +
-  #scale_y_continuous(limits=c(0,6),breaks=seq(0,6,1))+
-  theme_minimal()+weekly_small()+
-  labs(y="Bitumen production (1000s of barrels per day)",#x="Date",
+  scale_y_continuous(breaks=pretty_breaks(),expand=c(0,0))+
+  theme_irpp()+
+  expand_limits(y=0)+
+  labs(y="Bitumen production (1000s of barrels per day)",x=NULL,
        title=paste("Alberta Oil Sands In-Situ Bitumen Production by Recovery Method",sep=""),
        caption="Source: AER/ERCB ST53 data, graph by Andrew Leach.")
-#if(png==1)#set these to only turn on if you're making PNG graphs
-#  dev.off()
- 
-#png<-1
-#if(png==1)#set these to only turn on if you're making PNG graphs
- # set_png("in_situ_water.png")
+
 water_graph<-ggplot(df1,aes(Date,water/Bitumen,group=`Recovery Method`,colour=`Recovery Method`,fill=`Recovery Method`)) +
   geom_line(size=2)+
   scale_colour_viridis("Recovery Method",discrete=TRUE)+   
   scale_fill_viridis("Recovery Method",discrete=TRUE)+   
   scale_x_date(date_breaks = "2 years", date_labels =  "%b\n%Y",expand=c(0,0)) +
-  #scale_y_continuous(limits=c(0,6),breaks=seq(0,6,1))+
-  theme_minimal()+weekly_small()+
-  labs(y="Water production ratio (barrels per barrel bitumen)",#x="Date",
+  scale_y_continuous(breaks=pretty_breaks(),expand=c(0,0))+
+  theme_irpp()+
+  labs(y="Water production ratio (barrels per barrel bitumen)",x=NULL,
        title=paste("Alberta Oil Sands In-Situ Water Production Ratio by Recovery Method",sep=""),
        caption="Source: AER/ERCB ST53 data, graph by Andrew Leach.")
-#if(png==1)#set these to only turn on if you're making PNG graphs
-#  dev.off()
 
-
-
-#png<-1
-#if(png==1)#set these to only turn on if you're making PNG graphs
-#  set_png("in_situ_SOR.png")
 sor_graph<-ggplot(df1,aes(Date,SOR,group=`Recovery Method`,colour=`Recovery Method`)) +
   geom_line(size=2) +
   geom_line(data=filter(df1,`Recovery Method`=="Commercial-SAGD"),aes(Date,monthly_sor,colour="Production-weighted average"),size=2) +
   scale_colour_viridis("Recovery Method:",discrete=TRUE)+   
   scale_fill_viridis("Recovery Method:",discrete=TRUE)+   
   scale_x_date(date_breaks = "2 years", date_labels =  "%b\n%Y",expand=c(0,0)) +
-  #scale_y_continuous(limits=c(0,6),breaks=seq(0,6,1))+
-  scale_y_continuous(breaks=pretty_breaks())+
-  theme_minimal()+weekly_small()+
-  labs(y="Steam:bitumen ratio",#x="Date",
+  scale_y_continuous(breaks=pretty_breaks(),expand=c(0,0))+  
+  theme_irpp()+
+  labs(y="Steam:bitumen ratio",x=NULL,
        title=paste("Alberta Oil Sands Steam:Oil Ratios by Recovery Method",sep=""),
        caption="Source: AER/ERCB ST53 data, graph by Andrew Leach.")
-#if(png==1)#set these to only turn on if you're making PNG graphs
-# dev.off()
 
 
-
-#png<-1
-#if(png==1)#set these to only turn on if you're making PNG graphs
-#  set_png("SAGD_SOR.png")
 SAGD_SOR<-ggplot(filter(df1,`Recovery Method`=="Commercial-SAGD"),aes(Date,SOR,group=`Recovery Method`,colour=`Recovery Method`)) +
   geom_line(size=2) +
   scale_colour_viridis("Recovery Method:",discrete=TRUE)+   
   scale_fill_viridis("Recovery Method:",discrete=TRUE)+   
   scale_x_date(date_breaks = "2 years", date_labels =  "%b\n%Y",expand=c(0,0)) +
   scale_y_continuous()+
-  theme_minimal()+weekly_small()+
-  labs(y="Steam:bitumen ratio",#x="Date",
+  theme_irpp()+
+  labs(y="Steam:bitumen ratio",x=NULL,
        title=paste("Alberta Oil Sands Steam:Oil Ratios by Recovery Method",sep=""),
        caption="Source: AER/ERCB ST53 data, graph by Andrew Leach.")
-#if(png==1)#set these to only turn on if you're making PNG graphs
-#  dev.off()
 
 
 ```
@@ -444,23 +400,26 @@ p1<-ggplot(filter(df2),aes(Date,cumul_sor,group=`Recovery Method`,colour=`Recove
   geom_line(size=2) +
   scale_colour_viridis("Recovery Method:",discrete=TRUE)+   
   scale_fill_viridis("Recovery Method:",discrete=TRUE)+   
-  scale_x_date(date_breaks = "2 years", date_labels =  "%b\n%Y",expand=c(0,0)) +
-  scale_y_continuous()+
-  theme_minimal()+weekly_small()+
-  labs(y="Cumulative steam:bitumen ratio",#x="Date",
-       title=paste("Alberta Oil Sands Cumulative steam:Oil Ratios by Recovery Method",sep=""),
+  scale_x_date(date_breaks = "4 years", date_labels =  "%b\n%Y",expand=c(0,0)) +
+  scale_y_continuous(breaks=pretty_breaks(4),expand=c(0,0))+
+  expand_limits(y=c(0,6))+
+  theme_irpp()+
+  labs(y="Cumulative steam:bitumen ratio",x=NULL,
+       title=paste("Cumulative steam:oil Ratios",sep=""),
        caption="Source: AER/ERCB ST53 data, graph by Andrew Leach.")
 p2<-ggplot(filter(df2),aes(Date,Steam/Bitumen,group=`Recovery Method`,colour=`Recovery Method`)) +
   geom_line(size=2) +
   scale_colour_viridis("Recovery Method:",discrete=TRUE)+   
   scale_fill_viridis("Recovery Method:",discrete=TRUE)+   
-  scale_x_date(date_breaks = "2 years", date_labels =  "%b\n%Y",expand=c(0,0)) +
-  scale_y_continuous()+
-  theme_minimal()+weekly_small()+
-  labs(y="Monthly steam:bitumen ratio",#x="Date",
-       title=paste("Alberta Oil Sands Monthly steam:oil Ratios by Recovery Method",sep=""),
+  scale_x_date(date_breaks = "4 years", date_labels =  "%b\n%Y",expand=c(0,0)) +
+  scale_y_continuous(breaks=pretty_breaks(4),expand=c(0,0))+
+  expand_limits(y=c(0,6))+
+  theme_irpp()+
+  labs(y="Monthly steam:bitumen ratio",x=NULL,
+       title=paste("Steam:oil Ratios by Recovery Method",sep=""),
        caption="Source: AER/ERCB ST53 data, graph by Andrew Leach.")
-(p1+p2)
+(p2+p1)+plot_layout(guides = "collect") &
+  theme(legend.position = "bottom")
 
 ```
    
@@ -513,7 +472,7 @@ plot_a<-
   guides(colour="none")+
   scale_x_date(date_breaks = date_breaks, date_labels =  "%b\n%Y",expand=c(0,0)) +
   scale_y_continuous(expand = c(0,0),breaks = pretty_breaks())+
-  labs(y="Steam Production (1000 barrels per day)",x="",
+  labs(y="Steam Production (1000 barrels per day)",x=NULL,
        title=paste(scheme_name,"Steam Production"))+
   theme_irpp(base_size = 12)+
   expand_limits(y=0)
@@ -524,7 +483,7 @@ plot_b<-ggplot(scheme_data)+
   scale_x_date(date_breaks = date_breaks, date_labels =  "%b\n%Y",expand=c(0,0)) +
   scale_y_continuous(expand = c(0,0),breaks = pretty_breaks())+
   #geom_hline(yintercept = 0) + 
-  labs(y="Bitumen Production (1000 barrels per day)",x="",
+  labs(y="Bitumen Production (1000 barrels per day)",x=NULL,
        title=paste(scheme_name,"Bitumen Production")
   )+
   theme_irpp(base_size = 12)+
@@ -538,7 +497,7 @@ plot_c<-ggplot(scheme_data)+
   scale_x_date(date_breaks = date_breaks, date_labels =  "%b\n%Y",expand=c(0,0)) +
   scale_y_continuous(expand = c(0,0),breaks = pretty_breaks())+
   #geom_hline(yintercept = 0) + 
-  labs(y="Steam-to-oil ratio (barrels per barrel)",x="Production Month",
+  labs(y="Steam-to-oil ratio (barrels per barrel)",x=NULL,
        title=paste(scheme_name,"Monthly Steam-to-oil Ratio"),
        subtitle="Monthly data capped at SOR of 10",     
        caption="Dashed line is province-wide monthly average for recovery method (SAGD or CSS)")+
@@ -552,7 +511,7 @@ plot_d<-ggplot(scheme_data)+
   scale_x_date(date_breaks = date_breaks, date_labels =  "%b\n%Y",expand=c(0,0)) +
   scale_y_continuous(expand = c(0,0),breaks = pretty_breaks())+
   #geom_hline(yintercept = 0) + 
-  labs(y="Cumulative steam-to-oil ratio (barrels per barrel)",x="Production Month",
+  labs(y="Cumulative steam-to-oil ratio (barrels per barrel)",x=NULL,
        title=paste(scheme_name,"Cumulative Steam-to-oil Ratio"),
        subtitle="Monthly data capped at CSOR of 10",
        caption="Graphs by Andrew Leach, data via AER")+
@@ -568,7 +527,7 @@ plot_d<-ggplot(scheme_data)+
 
 ```{r fig.width=12, fig.height=8, scheme_plot_1, cache=FALSE}
 
-sagd_plot("Christina Lake (ex-MEG)")
+sagd_plot("Christina Lake North (ex-MEG)")
  
 
 ```
