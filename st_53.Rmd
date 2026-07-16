@@ -255,13 +255,13 @@ summarise(CSOR=sum(steam,na.rm = T)/sum(bitumen,na.rm = T),
   mutate(`Recovery Method`=if_else(`Scheme Name`=="Other","Variable",`Recovery Method`),
          `Recovery Method`=gsub("Commercial-","",`Recovery Method`))%>%
   mutate(`Scheme Name`=fct_reorder(`Scheme Name`,CSOR),`Scheme Name`=fct_relevel(`Scheme Name`,"Other",after=Inf))%>% 
-  mutate(Bitumen=format(round(Bitumen,-3), big.mark = ","))%>%
+  mutate(Bitumen=format(round(Bitumen/1000,0), big.mark = ","))%>%
   arrange(`Scheme Name`)
 
 #  arrange(-Bitumen)
   
 
-df_year<-df1 %>% group_by(year,`Recovery Method`) %>% summarise(Bitumen=mean(Bitumen)*6.2929,SOR=mean(SOR))%>% ungroup()%>%
+df_year<-df1 %>% group_by(year,`Recovery Method`) %>% summarise(Bitumen=mean(Bitumen)*6.2929/1000,SOR=mean(SOR))%>% ungroup()%>%
   #mutate(rec2=`Recovery Method`)%>%
   pivot_wider(names_from = c(`Recovery Method`), values_from = c(Bitumen,SOR))%>%
   mutate(Total_Bitumen=`Bitumen_Commercial-CSS`+`Bitumen_Commercial-SAGD`)%>%
@@ -272,7 +272,7 @@ df_year<-df1 %>% group_by(year,`Recovery Method`) %>% summarise(Bitumen=mean(Bit
 There are a few very large projects, which you can see listed here.
 
 ## Bitumen Production from Steam-Assisted Gravity Drainage and Cyclic Steam Stimulation Regimes in Alberta
-`r kable(df_project,digits=c(0,0,2,0,0),align=c("l","l","c","c","c"),col.names=c("Project","Operator","Cumulative Steam-to-Oil Ratio",paste("Bitumen Production (Barrels Per Day),\nmonth ended",format(max(df1$Date),"%B, %Y"),sep=" "),"Recovery Method"))%>%kable_styling()`
+`r kable(df_project,digits=c(0,0,2,2,0),align=c("l","l","c","c","c"),col.names=c("Project","Operator","Cumulative Steam-to-Oil Ratio",paste("Bitumen Production (1000 Barrels Per Day),\nmonth ended",format(max(df1$Date),"%B, %Y"),sep=" "),"Recovery Method"))%>%kable_styling()`
 
 
 
@@ -280,7 +280,7 @@ The first thing we might be interested in is how steam use per barrel has evolve
 
 ## Bitumen Production from Steam-Assisted Gravity Drainage and Cyclic Steam Stimulation Regimes in Alberta
 
-`r df_year%>%kable(digits=c(0,0,0,0,2,2),align=c("l","c","c","c","c","c"),col.names=c("Year","Commercial CSS","Commercial SAGD","Commercial Total","CSS","SAGD"))%>%kable_styling()%>%add_header_above(c(" " = 1, "Bitumen Production" = 3, "Steam-to-oil Ratio" = 2))%>%add_header_above(c(" " = 1, "Annual, Production-Weighted Average Performance Data" = 5))`
+`r df_year%>%kable(digits=c(0,0,0,0,2,2),align=c("l","c","c","c","c","c"),col.names=c("Year","Commercial CSS","Commercial SAGD","Commercial Total","CSS","SAGD"))%>%kable_styling()%>%add_header_above(c(" " = 1, "Bitumen Production (1000 Barrels per Day)" = 3, "Steam-to-oil Ratio" = 2))%>%add_header_above(c(" " = 1, "Annual, Production-Weighted Average Performance Data" = 5))`
 
    
   
